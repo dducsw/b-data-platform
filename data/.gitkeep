@@ -1,0 +1,9 @@
+# Data Directory
+
+This directory is used for storing shared data between containers.
+
+It will be mounted as volumes in various containers:
+- Spark: For reading/writing data files
+- Example datasets and outputs will be stored here
+
+The directory structure will be created automatically by the containers.

@@ -1,0 +1,226 @@
+version: '3.8'
+
+services:
+  # PostgreSQL for Hive Metastore
+  postgres:
+    image: postgres:15
+    container_name: postgres-hive
+    environment:
+      POSTGRES_DB: hive_metastore
+      POSTGRES_USER: hive
+      POSTGRES_PASSWORD: hive123
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./docker/hive/init-hive-schema.sql:/docker-entrypoint-initdb.d/init-hive-schema.sql
+    networks:
+      - data-platform
+
+  # MinIO Object Storage
+  minio:
+    image: minio/minio:latest
+    container_name: minio
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    volumes:
+      - minio_data:/data
+    environment:
+      MINIO_ACCESS_KEY: minioadmin
+      MINIO_SECRET_KEY: minioadmin123
+    command: server /data --console-address ":9001"
+    networks:
+      - data-platform
+
+  # Kafka with KRaft (Controller)
+  kafka-controller:
+    image: confluentinc/cp-kafka:7.7.0
+    container_name: kafka-controller
+    ports:
+      - "9093:9093"
+    environment:
+      KAFKA_NODE_ID: 1
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: 'CONTROLLER:PLAINTEXT'
+      KAFKA_LISTENERS: 'CONTROLLER://kafka-controller:9093'
+      KAFKA_INTER_BROKER_LISTENER_NAME: 'PLAINTEXT'
+      KAFKA_CONTROLLER_LISTENER_NAMES: 'CONTROLLER'
+      KAFKA_CONTROLLER_QUORUM_VOTERS: '1@kafka-controller:9093'
+      KAFKA_PROCESS_ROLES: 'controller'
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_LOG_DIRS: '/tmp/kraft-combined-logs'
+    volumes:
+      - kafka_controller_data:/tmp/kraft-combined-logs
+    networks:
+      - data-platform
+
+  # Kafka Broker 1
+  kafka-broker-1:
+    image: confluentinc/cp-kafka:7.7.0
+    container_name: kafka-broker-1
+    ports:
+      - "9092:9092"
+    depends_on:
+      - kafka-controller
+    environment:
+      KAFKA_NODE_ID: 2
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: 'PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT'
+      KAFKA_LISTENERS: 'PLAINTEXT://kafka-broker-1:29092,PLAINTEXT_HOST://0.0.0.0:9092'
+      KAFKA_ADVERTISED_LISTENERS: 'PLAINTEXT://kafka-broker-1:29092,PLAINTEXT_HOST://localhost:9092'
+      KAFKA_INTER_BROKER_LISTENER_NAME: 'PLAINTEXT'
+      KAFKA_CONTROLLER_LISTENER_NAMES: 'CONTROLLER'
+      KAFKA_CONTROLLER_QUORUM_VOTERS: '1@kafka-controller:9093'
+      KAFKA_PROCESS_ROLES: 'broker'
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_LOG_DIRS: '/tmp/kraft-combined-logs'
+    volumes:
+      - kafka_broker1_data:/tmp/kraft-combined-logs
+    networks:
+      - data-platform
+
+  # Kafka Broker 2
+  kafka-broker-2:
+    image: confluentinc/cp-kafka:7.7.0
+    container_name: kafka-broker-2
+    ports:
+      - "9094:9094"
+    depends_on:
+      - kafka-controller
+    environment:
+      KAFKA_NODE_ID: 3
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: 'PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT'
+      KAFKA_LISTENERS: 'PLAINTEXT://kafka-broker-2:29094,PLAINTEXT_HOST://0.0.0.0:9094'
+      KAFKA_ADVERTISED_LISTENERS: 'PLAINTEXT://kafka-broker-2:29094,PLAINTEXT_HOST://localhost:9094'
+      KAFKA_INTER_BROKER_LISTENER_NAME: 'PLAINTEXT'
+      KAFKA_CONTROLLER_LISTENER_NAMES: 'CONTROLLER'
+      KAFKA_CONTROLLER_QUORUM_VOTERS: '1@kafka-controller:9093'
+      KAFKA_PROCESS_ROLES: 'broker'
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_LOG_DIRS: '/tmp/kraft-combined-logs'
+    volumes:
+      - kafka_broker2_data:/tmp/kraft-combined-logs
+    networks:
+      - data-platform
+
+  # Hive Metastore
+  hive-metastore:
+    build: ./docker/hive
+    container_name: hive-metastore
+    ports:
+      - "9083:9083"
+    depends_on:
+      - postgres
+    environment:
+      DB_DRIVER: postgres
+      SERVICE_NAME: 'metastore'
+      SERVICE_OPTS: '-Xmx1G -Djavax.jdo.option.ConnectionDriverName=org.postgresql.Driver -Djavax.jdo.option.ConnectionURL=jdbc:postgresql://postgres:5432/hive_metastore -Djavax.jdo.option.ConnectionUserName=hive -Djavax.jdo.option.ConnectionPassword=hive123'
+    volumes:
+      - ./config/hive:/opt/hive/conf
+    networks:
+      - data-platform
+
+  # Spark Master
+  spark-master:
+    build: ./docker/spark
+    container_name: spark-master
+    ports:
+      - "8080:8080"
+      - "7077:7077"
+    environment:
+      - SPARK_MODE=master
+      - SPARK_MASTER_HOST=spark-master
+      - SPARK_MASTER_PORT=7077
+      - SPARK_MASTER_WEBUI_PORT=8080
+    volumes:
+      - ./data:/opt/spark/data
+      - ./config/spark:/opt/spark/conf
+    networks:
+      - data-platform
+
+  # Spark Worker 1
+  spark-worker-1:
+    build: ./docker/spark
+    container_name: spark-worker-1
+    ports:
+      - "8081:8081"
+    depends_on:
+      - spark-master
+    environment:
+      - SPARK_MODE=worker
+      - SPARK_MASTER_URL=spark://spark-master:7077
+      - SPARK_WORKER_WEBUI_PORT=8081
+      - SPARK_WORKER_MEMORY=2g
+      - SPARK_WORKER_CORES=2
+    volumes:
+      - ./data:/opt/spark/data
+      - ./config/spark:/opt/spark/conf
+    networks:
+      - data-platform
+
+  # Spark Worker 2
+  spark-worker-2:
+    build: ./docker/spark
+    container_name: spark-worker-2
+    ports:
+      - "8082:8082"
+    depends_on:
+      - spark-master
+    environment:
+      - SPARK_MODE=worker
+      - SPARK_MASTER_URL=spark://spark-master:7077
+      - SPARK_WORKER_WEBUI_PORT=8082
+      - SPARK_WORKER_MEMORY=2g
+      - SPARK_WORKER_CORES=2
+    volumes:
+      - ./data:/opt/spark/data
+      - ./config/spark:/opt/spark/conf
+    networks:
+      - data-platform
+
+  # Kafka Consumer 1
+  kafka-consumer-1:
+    build: ./docker/kafka
+    container_name: kafka-consumer-1
+    depends_on:
+      - kafka-broker-1
+      - kafka-broker-2
+    environment:
+      KAFKA_BROKERS: kafka-broker-1:29092,kafka-broker-2:29094
+      CONSUMER_GROUP: consumer-group-1
+      TOPIC_NAME: test-topic
+    networks:
+      - data-platform
+
+  # Kafka Consumer 2
+  kafka-consumer-2:
+    build: ./docker/kafka
+    container_name: kafka-consumer-2
+    depends_on:
+      - kafka-broker-1
+      - kafka-broker-2
+    environment:
+      KAFKA_BROKERS: kafka-broker-1:29092,kafka-broker-2:29094
+      CONSUMER_GROUP: consumer-group-2
+      TOPIC_NAME: test-topic
+    networks:
+      - data-platform
+
+volumes:
+  postgres_data:
+  minio_data:
+  kafka_controller_data:
+  kafka_broker1_data:
+  kafka_broker2_data:
+
+networks:
+  data-platform:
+    driver: bridge

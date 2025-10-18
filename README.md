@@ -74,9 +74,8 @@ Once all services are running, you can access:
 Run the included Delta Lake example:
 
 ```bash
-docker-compose exec spark-master spark-submit \
-    --master spark://spark-master:7077 \
-    /opt/spark/scripts/delta-lake-example.py
+docker-compose exec spark-master spark-submit --master spark://spark-master:7077 /opt/spark/scripts/delta-lake-example.py
+
 ```
 
 ### Creating Kafka Topics

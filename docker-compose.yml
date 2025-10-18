@@ -1,4 +1,3 @@
-version: '3.8'
 
 services:
   # PostgreSQL for Hive Metastore
@@ -37,13 +36,15 @@ services:
   kafka-controller:
     image: confluentinc/cp-kafka:7.7.0
     container_name: kafka-controller
+    user: "0:0"
     ports:
       - "9093:9093"
     environment:
+      CLUSTER_ID: "2s0ES2gBSHGzDZOiZn54qg"    
+      KAFKA_CLUSTER_ID: "2s0ES2gBSHGzDZOiZn54qg"
       KAFKA_NODE_ID: 1
       KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: 'CONTROLLER:PLAINTEXT'
       KAFKA_LISTENERS: 'CONTROLLER://kafka-controller:9093'
-      KAFKA_INTER_BROKER_LISTENER_NAME: 'PLAINTEXT'
       KAFKA_CONTROLLER_LISTENER_NAMES: 'CONTROLLER'
       KAFKA_CONTROLLER_QUORUM_VOTERS: '1@kafka-controller:9093'
       KAFKA_PROCESS_ROLES: 'controller'
@@ -61,16 +62,18 @@ services:
   kafka-broker-1:
     image: confluentinc/cp-kafka:7.7.0
     container_name: kafka-broker-1
+    user: "0:0"
     ports:
       - "9092:9092"
     depends_on:
       - kafka-controller
     environment:
+      CLUSTER_ID: "2s0ES2gBSHGzDZOiZn54qg"    
+      KAFKA_CLUSTER_ID: "2s0ES2gBSHGzDZOiZn54qg"
       KAFKA_NODE_ID: 2
-      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: 'PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT'
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: 'PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT,CONTROLLER:PLAINTEXT'
       KAFKA_LISTENERS: 'PLAINTEXT://kafka-broker-1:29092,PLAINTEXT_HOST://0.0.0.0:9092'
       KAFKA_ADVERTISED_LISTENERS: 'PLAINTEXT://kafka-broker-1:29092,PLAINTEXT_HOST://localhost:9092'
-      KAFKA_INTER_BROKER_LISTENER_NAME: 'PLAINTEXT'
       KAFKA_CONTROLLER_LISTENER_NAMES: 'CONTROLLER'
       KAFKA_CONTROLLER_QUORUM_VOTERS: '1@kafka-controller:9093'
       KAFKA_PROCESS_ROLES: 'broker'
@@ -88,16 +91,18 @@ services:
   kafka-broker-2:
     image: confluentinc/cp-kafka:7.7.0
     container_name: kafka-broker-2
+    user: "0:0"
     ports:
       - "9094:9094"
     depends_on:
       - kafka-controller
     environment:
+      CLUSTER_ID: "2s0ES2gBSHGzDZOiZn54qg"    
+      KAFKA_CLUSTER_ID: "2s0ES2gBSHGzDZOiZn54qg"
       KAFKA_NODE_ID: 3
-      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: 'PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT'
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: 'PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT,CONTROLLER:PLAINTEXT'
       KAFKA_LISTENERS: 'PLAINTEXT://kafka-broker-2:29094,PLAINTEXT_HOST://0.0.0.0:9094'
       KAFKA_ADVERTISED_LISTENERS: 'PLAINTEXT://kafka-broker-2:29094,PLAINTEXT_HOST://localhost:9094'
-      KAFKA_INTER_BROKER_LISTENER_NAME: 'PLAINTEXT'
       KAFKA_CONTROLLER_LISTENER_NAMES: 'CONTROLLER'
       KAFKA_CONTROLLER_QUORUM_VOTERS: '1@kafka-controller:9093'
       KAFKA_PROCESS_ROLES: 'broker'
@@ -140,9 +145,12 @@ services:
       - SPARK_MASTER_HOST=spark-master
       - SPARK_MASTER_PORT=7077
       - SPARK_MASTER_WEBUI_PORT=8080
+      - DELTA_VERSION=3.2.0
+      - SPARK_JARS_PACKAGES=io.delta:delta-spark_2.13:3.2.0
     volumes:
       - ./data:/opt/spark/data
       - ./config/spark:/opt/spark/conf
+      - ./scripts:/opt/spark/scripts
     networks:
       - data-platform
 
@@ -160,9 +168,12 @@ services:
       - SPARK_WORKER_WEBUI_PORT=8081
       - SPARK_WORKER_MEMORY=2g
       - SPARK_WORKER_CORES=2
+      - DELTA_VERSION=3.2.0
+      - SPARK_JARS_PACKAGES=io.delta:delta-spark_2.13:3.2.0
     volumes:
       - ./data:/opt/spark/data
       - ./config/spark:/opt/spark/conf
+      - ./scripts:/opt/spark/scripts
     networks:
       - data-platform
 
@@ -180,9 +191,12 @@ services:
       - SPARK_WORKER_WEBUI_PORT=8082
       - SPARK_WORKER_MEMORY=2g
       - SPARK_WORKER_CORES=2
+      - DELTA_VERSION=3.2.0
+      - SPARK_JARS_PACKAGES=io.delta:delta-spark_2.13:3.2.0
     volumes:
       - ./data:/opt/spark/data
       - ./config/spark:/opt/spark/conf
+      - ./scripts:/opt/spark/scripts
     networks:
       - data-platform
 

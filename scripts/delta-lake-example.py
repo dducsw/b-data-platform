@@ -35,10 +35,8 @@ def main():
         delta_path = "s3a://datalake/delta-tables/employees"
         
         print("Writing data to Delta table...")
-        df.write \
-          .format("delta") \
-          .mode("overwrite") \
-          .save(delta_path)
+        df.write.format("delta").save("/opt/spark/delta-table")
+
         
         print("Data written successfully!")
         

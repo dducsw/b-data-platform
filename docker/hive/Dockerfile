@@ -36,7 +36,6 @@ COPY entrypoint.sh /opt/entrypoint.sh
 RUN chmod +x /opt/entrypoint.sh
 
 # Initialize schema
-RUN $HIVE_HOME/bin/schematool -initSchema -dbType postgres
 
 EXPOSE 9083
 

@@ -20,7 +20,7 @@ ENV HADOOP_VERSION=3
 ENV DELTA_VERSION=3.2.0
 ENV SPARK_HOME=/opt/spark
 ENV PATH=$PATH:$SPARK_HOME/bin:$SPARK_HOME/sbin
-ENV SPARK_JARS_PACKAGES="io.delta:delta-spark_2.13:3.2.0"
+ENV SPARK_JARS_PACKAGES="io.delta:delta-spark_2.12:3.2.0"
 
 
 # Install delta-spark Python package
@@ -31,16 +31,16 @@ RUN wget -q "https://archive.apache.org/dist/spark/spark-${SPARK_VERSION}/spark-
     && mv "spark-${SPARK_VERSION}-bin-hadoop${HADOOP_VERSION}" $SPARK_HOME \
     && rm "spark-${SPARK_VERSION}-bin-hadoop${HADOOP_VERSION}.tgz"
 
-# Download Delta Lake jars (for Scala 2.13)
-RUN wget -q "https://repo1.maven.org/maven2/io/delta/delta-spark_2.13/${DELTA_VERSION}/delta-spark_2.13-${DELTA_VERSION}.jar" \
-    -O $SPARK_HOME/jars/delta-spark_2.13-${DELTA_VERSION}.jar
+# Download Delta Lake jars (for Scala 2.12)
+RUN wget -q "https://repo1.maven.org/maven2/io/delta/delta-spark_2.12/${DELTA_VERSION}/delta-spark_2.12-${DELTA_VERSION}.jar" \
+    -O $SPARK_HOME/jars/delta-spark_2.12-${DELTA_VERSION}.jar
 
 RUN wget -q "https://repo1.maven.org/maven2/io/delta/delta-storage/${DELTA_VERSION}/delta-storage-${DELTA_VERSION}.jar" \
     -O $SPARK_HOME/jars/delta-storage-${DELTA_VERSION}.jar
 
 # Download additional connectors
-RUN wget -q "https://repo1.maven.org/maven2/org/apache/spark/spark-sql-kafka-0-10_2.13/3.5.1/spark-sql-kafka-0-10_2.13-3.5.1.jar" \
-    -O $SPARK_HOME/jars/spark-sql-kafka-0-10_2.13-3.5.1.jar
+RUN wget -q "https://repo1.maven.org/maven2/org/apache/spark/spark-sql-kafka-0-10_2.12/3.5.1/spark-sql-kafka-0-10_2.12-3.5.1.jar" \
+    -O $SPARK_HOME/jars/spark-sql-kafka-0-10_2.12-3.5.1.jar
 
 
 

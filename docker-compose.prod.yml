@@ -4,15 +4,6 @@ version: '3.8'
 # Usage: docker-compose -f docker-compose.yml -f docker-compose.prod.yml up -d
 
 services:
-  postgres:
-    volumes:
-      - /data/postgres:/var/lib/postgresql/data
-    deploy:
-      resources:
-        limits:
-          memory: 2G
-          cpus: '1.0'
-
   minio:
     volumes:
       - /data/minio:/data
@@ -76,11 +67,4 @@ services:
       resources:
         limits:
           memory: 3G
-          cpus: '1.0'
-
-  hive-metastore:
-    deploy:
-      resources:
-        limits:
-          memory: 2G
           cpus: '1.0'

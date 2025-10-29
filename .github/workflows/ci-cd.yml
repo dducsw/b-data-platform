@@ -30,10 +30,6 @@ jobs:
         echo "Waiting for services to start..."
         sleep 60
         
-    - name: Test PostgreSQL connection
-      run: |
-        docker-compose exec -T postgres pg_isready -U hive -d hive_metastore
-        
     - name: Test MinIO connection
       run: |
         curl -f http://localhost:9001 || exit 1
@@ -45,10 +41,6 @@ jobs:
     - name: Test Kafka brokers
       run: |
         docker-compose exec -T kafka-broker-1 kafka-topics.sh --bootstrap-server localhost:9092 --list
-        
-    - name: Test Hive Metastore
-      run: |
-        nc -z localhost 9083 || exit 1
         
     - name: Run integration tests
       run: |
@@ -107,21 +99,3 @@ jobs:
         tags: |
           ghcr.io/${{ github.repository }}/spark:latest
           ghcr.io/${{ github.repository }}/spark:${{ github.sha }}
-          
-    - name: Build and push Hive image
-      uses: docker/build-push-action@v5
-      with:
-        context: ./docker/hive
-        push: true
-        tags: |
-          ghcr.io/${{ github.repository }}/hive:latest
-          ghcr.io/${{ github.repository }}/hive:${{ github.sha }}
-          
-    - name: Build and push Kafka Consumer image
-      uses: docker/build-push-action@v5
-      with:
-        context: ./docker/kafka
-        push: true
-        tags: |
-          ghcr.io/${{ github.repository }}/kafka-consumer:latest
-          ghcr.io/${{ github.repository }}/kafka-consumer:${{ github.sha }}

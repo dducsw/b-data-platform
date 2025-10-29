@@ -1,21 +1,5 @@
 
 services:
-  # PostgreSQL for Hive Metastore
-  postgres:
-    image: postgres:15
-    container_name: postgres-hive
-    environment:
-      POSTGRES_DB: hive_metastore
-      POSTGRES_USER: hive
-      POSTGRES_PASSWORD: hive123
-    ports:
-      - "5432:5432"
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
-      - ./docker/hive/init-hive-schema.sql:/docker-entrypoint-initdb.d/init-hive-schema.sql
-    networks:
-      - data-platform
-
   # MinIO Object Storage
   minio:
     image: minio/minio:latest
@@ -29,6 +13,22 @@ services:
       MINIO_ACCESS_KEY: minioadmin
       MINIO_SECRET_KEY: minioadmin123
     command: server /data --console-address ":9001"
+    networks:
+      - data-platform
+
+  # MinIO bucket initialization
+  minio-init:
+    image: minio/mc:latest
+    container_name: minio-init
+    depends_on:
+      - minio
+    entrypoint: >
+      /bin/sh -c "
+      /usr/bin/mc alias set myminio http://minio:9000 minioadmin minioadmin123;
+      /usr/bin/mc mb myminio/data-lake --ignore-existing;
+      /usr/bin/mc mb myminio/warehouse --ignore-existing;
+      exit 0;
+      "
     networks:
       - data-platform
 
@@ -116,23 +116,6 @@ services:
     networks:
       - data-platform
 
-  # Hive Metastore
-  hive-metastore:
-    build: ./docker/hive
-    container_name: hive-metastore
-    ports:
-      - "9083:9083"
-    depends_on:
-      - postgres
-    environment:
-      DB_DRIVER: postgres
-      SERVICE_NAME: 'metastore'
-      SERVICE_OPTS: '-Xmx1G -Djavax.jdo.option.ConnectionDriverName=org.postgresql.Driver -Djavax.jdo.option.ConnectionURL=jdbc:postgresql://postgres:5432/hive_metastore -Djavax.jdo.option.ConnectionUserName=hive -Djavax.jdo.option.ConnectionPassword=hive123'
-    volumes:
-      - ./config/hive:/opt/hive/conf
-    networks:
-      - data-platform
-
   # Spark Master
   spark-master:
     build: ./docker/spark
@@ -145,8 +128,8 @@ services:
       - SPARK_MASTER_HOST=spark-master
       - SPARK_MASTER_PORT=7077
       - SPARK_MASTER_WEBUI_PORT=8080
-      - DELTA_VERSION=3.2.0
-      - SPARK_JARS_PACKAGES=io.delta:delta-spark_2.13:3.2.0
+      - ICEBERG_VERSION=1.9.2
+      - SPARK_JARS_PACKAGES=org.apache.iceberg:iceberg-spark-runtime-3.5_2.12:1.9.2,org.apache.hadoop:hadoop-aws:3.3.4
     volumes:
       - ./data:/opt/spark/data
       - ./config/spark:/opt/spark/conf
@@ -168,8 +151,8 @@ services:
       - SPARK_WORKER_WEBUI_PORT=8081
       - SPARK_WORKER_MEMORY=2g
       - SPARK_WORKER_CORES=2
-      - DELTA_VERSION=3.2.0
-      - SPARK_JARS_PACKAGES=io.delta:delta-spark_2.13:3.2.0
+      - ICEBERG_VERSION=1.9.2
+      - SPARK_JARS_PACKAGES=org.apache.iceberg:iceberg-spark-runtime-3.5_2.12:1.9.2,org.apache.hadoop:hadoop-aws:3.3.4
     volumes:
       - ./data:/opt/spark/data
       - ./config/spark:/opt/spark/conf
@@ -191,8 +174,8 @@ services:
       - SPARK_WORKER_WEBUI_PORT=8082
       - SPARK_WORKER_MEMORY=2g
       - SPARK_WORKER_CORES=2
-      - DELTA_VERSION=3.2.0
-      - SPARK_JARS_PACKAGES=io.delta:delta-spark_2.13:3.2.0
+      - ICEBERG_VERSION=1.9.2
+      - SPARK_JARS_PACKAGES=org.apache.iceberg:iceberg-spark-runtime-3.5_2.12:1.9.2,org.apache.hadoop:hadoop-aws:3.3.4
     volumes:
       - ./data:/opt/spark/data
       - ./config/spark:/opt/spark/conf
@@ -200,37 +183,44 @@ services:
     networks:
       - data-platform
 
-  # Kafka Consumer 1
-  kafka-consumer-1:
-    build: ./docker/kafka
-    container_name: kafka-consumer-1
-    depends_on:
-      - kafka-broker-1
-      - kafka-broker-2
+  # Apache Gravitino - Universal Metadata Management
+  gravitino:
+    image: datastrato/gravitino:1.0.0
+    container_name: gravitino
+    ports:
+      - "8090:8090"
     environment:
-      KAFKA_BROKERS: kafka-broker-1:29092,kafka-broker-2:29094
-      CONSUMER_GROUP: consumer-group-1
-      TOPIC_NAME: test-topic
+      GRAVITINO_ROOT_DIR: /opt/gravitino
+      GRAVITINO_SERVER_SHUTDOWN_TIMEOUT: 60s
+    volumes:
+      - gravitino_data:/opt/gravitino/data
+      - ./config/gravitino:/opt/gravitino/conf
     networks:
       - data-platform
+    depends_on:
+      - minio
 
-  # Kafka Consumer 2
-  kafka-consumer-2:
-    build: ./docker/kafka
-    container_name: kafka-consumer-2
-    depends_on:
-      - kafka-broker-1
-      - kafka-broker-2
+  # Iceberg REST Catalog (compatible with Iceberg 1.9.2)
+  iceberg-rest:
+    image: tabulario/iceberg-rest:1.6.0
+    container_name: iceberg-rest
+    ports:
+      - "8181:8181"
     environment:
-      KAFKA_BROKERS: kafka-broker-1:29092,kafka-broker-2:29094
-      CONSUMER_GROUP: consumer-group-2
-      TOPIC_NAME: test-topic
+      CATALOG_WAREHOUSE: s3a://lakehouse/
+      CATALOG_IO__IMPL: org.apache.iceberg.aws.s3.S3FileIO
+      CATALOG_S3_ENDPOINT: http://minio:9000
+      CATALOG_S3_ACCESS__KEY__ID: minioadmin
+      CATALOG_S3_SECRET__ACCESS__KEY: minioadmin123
+      CATALOG_S3_PATH__STYLE__ACCESS: true
     networks:
       - data-platform
+    depends_on:
+      - minio
 
 volumes:
-  postgres_data:
   minio_data:
+  gravitino_data:
   kafka_controller_data:
   kafka_broker1_data:
   kafka_broker2_data:

@@ -1,6 +1,6 @@
 # Big Data Platform
 
-A comprehensive data platform built with Docker Compose, featuring Apache Spark 4.0, Apache Kafka 3.9 with KRaft, Hive Metastore 3.1.3, MinIO, PostgreSQL, and Delta Lake 4.0.
+A comprehensive data platform built with Docker Compose, featuring Apache Spark 4.0, Apache Kafka 3.9 with KRaft, Apache Iceberg, Apache Gravitino, and MinIO.
 
 ## 🏗️ Architecture
 
@@ -10,19 +10,20 @@ This platform provides a complete big data ecosystem with the following componen
 
 - **Apache Spark 4.0**: Distributed computing engine (1 Master + 2 Workers)
 - **Apache Kafka 3.9**: Streaming platform with KRaft mode (2 Brokers + 1 Controller)
-- **Delta Lake 4.0**: ACID transactions and time travel for data lakes
-- **Hive Metastore 3.1.3**: Metadata management for Spark and Hive
+- **Apache Iceberg 1.9.2**: Open table format with ACID transactions and time travel (Format Version 2)
+- **Apache Gravitino 1.0.0**: Universal metadata management for multi-catalog data
+- **Iceberg REST Catalog**: RESTful catalog service for Iceberg tables
 - **MinIO**: S3-compatible object storage
-- **PostgreSQL**: Database for Hive Metastore
-- **Kafka Consumers**: 2 consumer applications for stream processing
 
 ### Key Features
 
-- ✅ **ACID Transactions**: Delta Lake provides ACID guarantees
-- ✅ **Time Travel**: Query historical versions of data
+- ✅ **ACID Transactions**: Iceberg provides ACID guarantees with snapshot isolation
+- ✅ **Time Travel**: Query historical versions of data with Iceberg snapshots
+- ✅ **Schema Evolution**: Safe schema changes without breaking existing queries
+- ✅ **Table Format V2**: Latest Iceberg format with merge-on-read and improved performance
+- ✅ **Universal Metadata**: Gravitino manages metadata across multiple data catalogs
 - ✅ **Stream Processing**: Real-time data processing with Spark Streaming + Kafka
 - ✅ **Object Storage**: S3-compatible storage with MinIO
-- ✅ **Metadata Management**: Centralized metadata with Hive Metastore
 - ✅ **Scalable**: Distributed processing with Spark cluster
 - ✅ **CI/CD**: GitHub Actions for automated testing and deployment
 
@@ -63,18 +64,26 @@ Once all services are running, you can access:
 | Spark Worker 1 UI | http://localhost:8081 | - |
 | Spark Worker 2 UI | http://localhost:8082 | - |
 | MinIO Console | http://localhost:9001 | minioadmin/minioadmin123 |
-| PostgreSQL | localhost:5432 | hive/hive123 |
+| Apache Gravitino | http://localhost:8090 | - |
+| Iceberg REST Catalog | http://localhost:8181 | - |
 | Kafka Brokers | localhost:9092, localhost:9094 | - |
-| Hive Metastore | localhost:9083 | - |
 
 ## 📊 Usage Examples
 
-### Delta Lake Example
+### Apache Iceberg Example
 
-Run the included Delta Lake example:
+Run the included Iceberg example:
 
 ```bash
-docker-compose exec spark-master spark-submit --master spark://spark-master:7077 /opt/spark/scripts/delta-lake-example.py
+docker-compose exec spark-master spark-submit --master spark://spark-master:7077 /opt/spark/scripts/iceberg-example.py
+```
+
+### Kafka to Iceberg Streaming
+
+Real-time streaming from Kafka to Iceberg tables:
+
+```bash
+docker-compose exec spark-master spark-submit --master spark://spark-master:7077 /opt/spark/scripts/kafka-iceberg-streaming.py
 
 ```
 
@@ -122,7 +131,7 @@ docker-compose ps
 # Check individual service logs
 docker-compose logs spark-master
 docker-compose logs kafka-broker-1
-docker-compose logs hive-metastore
+docker-compose logs minio
 ```
 
 ## 🔄 CI/CD
@@ -140,7 +149,6 @@ b-data-platform/
 ├── .github/workflows/         # GitHub Actions CI/CD
 ├── config/spark/             # Spark configuration
 ├── docker/                   # Docker images
-│   ├── hive/                # Hive Metastore
 │   ├── kafka/               # Kafka consumers
 │   └── spark/               # Spark with Delta Lake
 ├── scripts/                  # Utility scripts and examples
@@ -181,7 +189,6 @@ docker-compose down -v
 docker system prune -f
 ```
 - **MinIO**: S3-compatible object storage
-- **PostgreSQL**: Database for Hive Metastore backend
 - **Delta Lake 4.0**: Open-source storage framework for data lakes
 
 ## Quick Start
@@ -208,10 +215,7 @@ docker system prune -f
 - **Spark Master**: Port 8080 (UI), 7077 (Spark)
 - **Spark Worker**: Port 8081 (UI)
 - **Kafka**: Port 9092
-- **Zookeeper**: Port 2181
 - **MinIO**: Port 9000 (API), 9001 (Console)
-- **PostgreSQL**: Port 5432
-- **Hive Metastore**: Port 9083
 
 ### Development Tools
 - **Jupyter Notebook**: Port 8888

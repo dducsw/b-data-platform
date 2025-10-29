@@ -6,17 +6,7 @@ set -e
 
 echo "Running integration tests for Data Platform..."
 
-# Test 1: PostgreSQL Health
-echo "Testing PostgreSQL connection..."
-docker-compose exec -T postgres pg_isready -U hive -d hive_metastore
-if [ $? -eq 0 ]; then
-    echo "✅ PostgreSQL is healthy"
-else
-    echo "❌ PostgreSQL test failed"
-    exit 1
-fi
-
-# Test 2: MinIO Health
+# Test 1: MinIO Health
 echo "Testing MinIO connection..."
 if curl -f http://localhost:9001/minio/health/live; then
     echo "✅ MinIO is healthy"
@@ -25,7 +15,7 @@ else
     exit 1
 fi
 
-# Test 3: Kafka Health
+# Test 2: Kafka Health
 echo "Testing Kafka brokers..."
 docker-compose exec -T kafka-broker-1 kafka-topics.sh --bootstrap-server kafka-broker-1:29092 --list
 if [ $? -eq 0 ]; then
@@ -43,7 +33,7 @@ else
     exit 1
 fi
 
-# Test 4: Spark Master Health
+# Test 3: Spark Master Health
 echo "Testing Spark Master..."
 if curl -f http://localhost:8080; then
     echo "✅ Spark Master is healthy"
@@ -52,7 +42,7 @@ else
     exit 1
 fi
 
-# Test 5: Spark Workers Health
+# Test 4: Spark Workers Health
 echo "Testing Spark Workers..."
 if curl -f http://localhost:8081; then
     echo "✅ Spark Worker 1 is healthy"
@@ -68,16 +58,7 @@ else
     exit 1
 fi
 
-# Test 6: Hive Metastore Health
-echo "Testing Hive Metastore..."
-if nc -z localhost 9083; then
-    echo "✅ Hive Metastore is healthy"
-else
-    echo "❌ Hive Metastore test failed"
-    exit 1
-fi
-
-# Test 7: Create test topic and produce/consume messages
+# Test 5: Create test topic and produce/consume messages
 echo "Testing Kafka produce/consume..."
 docker-compose exec -T kafka-broker-1 kafka-topics.sh \
     --bootstrap-server kafka-broker-1:29092 \
@@ -105,7 +86,7 @@ else
     exit 1
 fi
 
-# Test 8: Test MinIO bucket operations
+# Test 6: Test MinIO bucket operations
 echo "Testing MinIO bucket operations..."
 docker run --rm --network b-data-platform_data-platform \
     minio/mc:latest sh -c "

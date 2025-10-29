@@ -18,21 +18,23 @@ spark = SparkSession.builder \
     .appName("SimpleIcebergScript") \
     .config("spark.sql.extensions", "org.apache.iceberg.spark.extensions.IcebergSparkSessionExtensions") \
     .config("spark.sql.catalog.iceberg", "org.apache.iceberg.spark.SparkCatalog") \
-    .config("spark.sql.catalog.iceberg.type", "rest") \
-    .config("spark.sql.catalog.iceberg.uri", "http://iceberg-rest:8181") \
-    .config("spark.sql.catalog.iceberg.table-default.format-version", "2") \
+    .config("spark.sql.catalog.iceberg.type", "hadoop") \
+    .config("spark.sql.catalog.iceberg.warehouse", "s3a://warehouse/") \
     .config("spark.sql.defaultCatalog", "iceberg") \
+    .config("spark.hadoop.fs.s3a.endpoint", "http://minio:9000") \
+    .config("spark.hadoop.fs.s3a.access.key", "minioadmin") \
+    .config("spark.hadoop.fs.s3a.secret.key", "minioadmin123") \
+    .config("spark.hadoop.fs.s3a.path.style.access", "true") \
+    .config("spark.hadoop.fs.s3a.impl", "org.apache.hadoop.fs.s3a.S3AFileSystem") \
+    .config("spark.hadoop.fs.s3a.connection.ssl.enabled", "false") \
+    .config("spark.hadoop.fs.s3a.aws.credentials.provider", "org.apache.hadoop.fs.s3a.SimpleAWSCredentialsProvider") \
     .getOrCreate()
 
 try:
-    # Create namespace
-    print("📋 Creating namespace...")
-    spark.sql("CREATE NAMESPACE IF NOT EXISTS iceberg.demo")
-    
-    # Create table with format version 2
+    # Create table directly without namespace
     print("📋 Creating BusGPS table with Iceberg v2 format...")
     spark.sql("""
-        CREATE TABLE IF NOT EXISTS iceberg.demo.bus_gps (
+        CREATE TABLE IF NOT EXISTS iceberg.bus_gps (
             bus_id STRING,
             route_id STRING,
             latitude DOUBLE,
@@ -74,12 +76,12 @@ try:
     df.write \
         .format("iceberg") \
         .mode("append") \
-        .saveAsTable("iceberg.demo.bus_gps")
+        .saveAsTable("iceberg.bus_gps")
     print("✅ Data written!")
     
     # Read and display data
     print("🔍 Reading data from table...")
-    result_df = spark.table("iceberg.demo.bus_gps")
+    result_df = spark.table("iceberg.bus_gps")
     print(f"📈 Total records: {result_df.count()}")
     
     print("\n📋 All BusGPS data:")
@@ -89,7 +91,7 @@ try:
     print("\n🚍 Buses on ROUTE_1:")
     spark.sql("""
         SELECT bus_id, speed, latitude, longitude 
-        FROM iceberg.demo.bus_gps 
+        FROM iceberg.bus_gps 
         WHERE route_id = 'ROUTE_1'
     """).show()
     

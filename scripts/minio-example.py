@@ -58,7 +58,6 @@ try:
     df.coalesce(1) \
         .write \
         .mode("overwrite") \
-        .option("path", "s3a://data-lake/bus-gps/year=2024/month=10/day=29/") \
         .parquet("s3a://data-lake/bus-gps/year=2024/month=10/day=29/")
     print("✅ Data written to MinIO!")
     

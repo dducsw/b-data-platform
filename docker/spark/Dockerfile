@@ -39,6 +39,14 @@ RUN wget -q "https://repo1.maven.org/maven2/org/apache/iceberg/iceberg-spark-run
 RUN wget -q "https://repo1.maven.org/maven2/org/apache/iceberg/iceberg-aws/${ICEBERG_VERSION}/iceberg-aws-${ICEBERG_VERSION}.jar" \
     -O $SPARK_HOME/jars/iceberg-aws-${ICEBERG_VERSION}.jar
 
+# Download AWS SDK for S3 support
+RUN wget -q "https://repo1.maven.org/maven2/com/amazonaws/aws-java-sdk-bundle/1.12.565/aws-java-sdk-bundle-1.12.565.jar" \
+    -O $SPARK_HOME/jars/aws-java-sdk-bundle-1.12.565.jar
+
+# Download Hadoop AWS
+RUN wget -q "https://repo1.maven.org/maven2/org/apache/hadoop/hadoop-aws/3.3.4/hadoop-aws-3.3.4.jar" \
+    -O $SPARK_HOME/jars/hadoop-aws-3.3.4.jar
+
 # Download additional connectors
 RUN wget -q "https://repo1.maven.org/maven2/org/apache/spark/spark-sql-kafka-0-10_2.12/3.5.5/spark-sql-kafka-0-10_2.12-3.5.5.jar" \
     -O $SPARK_HOME/jars/spark-sql-kafka-0-10_2.12-3.5.5.jar

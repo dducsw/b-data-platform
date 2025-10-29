@@ -1,189 +1,88 @@
-# 🚀 Big Data Platform - Windows Setup Guide
+# Big Data Platform - Windows Setup Guide
 
-## ✅ Prerequisites Check
+## Prerequisites
 
-Trước khi bắt đầu, đảm bảo hệ thống của bạn đáp ứng:
+### System Requirements:
+- Windows 10/11 with Docker Desktop
+- 8GB RAM (16GB recommended)
+- 20GB free disk space
 
-### Yêu cầu hệ thống:
-- **OS**: Windows 10/11 Pro/Enterprise (với Hyper-V)
-- **RAM**: Tối thiểu 8GB (khuyến nghị 16GB+)
-- **Disk**: 20GB dung lượng trống
-- **CPU**: 4 cores trở lên
+### Required Software:
+- Docker Desktop for Windows
+- Git for Windows
+- PowerShell
 
-### Phần mềm cần thiết:
-- ✅ **Docker Desktop for Windows** (version 4.0+)
-- ✅ **Git for Windows**
-- ✅ **PowerShell** (đã có sẵn)
+## Setup Steps
 
-## 🔧 Step-by-Step Setup
-
-### 1. Chuẩn bị Docker
+### 1. Check Docker
 ```powershell
-# Kiểm tra Docker
 docker --version
 docker-compose --version
-
-# Cấu hình Docker (khuyến nghị)
-# - Memory: 8GB+
-# - CPU: 4+ cores
-# - Enable Kubernetes (optional)
 ```
 
-### 2. Clone và Setup Project
+### 2. Clone Repository
 ```powershell
-# Clone repository
 git clone <your-repo-url>
 cd b-data-platform
-
-# Kiểm tra compatibility
-.\scripts\version-check.bat
 ```
 
-### 3. Build Images
+### 3. Start Platform
 ```powershell
-# Pull base images
-docker-compose pull
-
-# Build custom Spark images (mất ~10-15 phút)
-docker-compose build
-
-# Kiểm tra images
-docker images | findstr "spark\|kafka\|minio\|gravitino"
-```
-
-### 4. Start Platform
-```powershell
-# Khởi động tất cả services
-.\scripts\start-platform.bat
-
-# Hoặc manual:
 docker-compose up -d
+```
 
-# Kiểm tra status
+### 4. Verify Setup
+```powershell
 docker-compose ps
 ```
 
-### 5. Verify Setup
-```powershell
-# Health check
-.\scripts\health-check.bat
-
-# Advanced testing
-.\scripts\advanced-test.bat
-```
-
-## 🌐 Access URLs
-
-Sau khi platform khởi động thành công:
+## Access Services
 
 | Service | URL | Credentials |
 |---------|-----|-------------|
-| **Spark Master UI** | http://localhost:8080 | - |
-| **Spark Worker 1** | http://localhost:8081 | - |
-| **Spark Worker 2** | http://localhost:8082 | - |
-| **MinIO Console** | http://localhost:9001 | `minioadmin/minioadmin123` |
-| **Apache Gravitino** | http://localhost:8090 | - |
-| **Iceberg REST** | http://localhost:8181 | - |
-| **Kafka Brokers** | localhost:9092, localhost:9094 | - |
+| Spark Master UI | http://localhost:8080 | - |
+| Spark Worker 1 | http://localhost:8081 | - |
+| Spark Worker 2 | http://localhost:8082 | - |
+| MinIO Console | http://localhost:9002 | minioadmin/minioadmin123 |
+| Apache Gravitino | http://localhost:8090 | - |
+| Iceberg REST Catalog | http://localhost:8181 | - |
+| Kafka Brokers | localhost:9092, localhost:9094 | - |
 
-## 🧪 Quick Tests
+## Quick Tests
 
 ### Test MinIO
 ```powershell
-# Kiểm tra bucket
-docker-compose exec minio-init mc ls myminio/
+docker run --rm --network b-data-platform_data-platform minio/mc:latest mc ls myminio/
 ```
 
 ### Test Kafka
 ```powershell
-# List topics
-docker-compose exec kafka-broker-1 kafka-topics.sh --bootstrap-server localhost:29092 --list
-
-# Create test topic
-docker-compose exec kafka-broker-1 kafka-topics.sh --bootstrap-server localhost:29092 --create --topic test --partitions 3 --replication-factor 2
+docker-compose exec kafka-broker-1 kafka-topics.sh --bootstrap-server kafka-broker-1:29092 --list
 ```
 
-### Test Spark + Iceberg
+### Test Spark
 ```powershell
-# Run example
-docker-compose exec spark-master spark-submit --master spark://spark-master:7077 /opt/spark/scripts/iceberg-example.py
+docker-compose exec spark-master spark-shell --master spark://spark-master:7077
 ```
 
-## 🚨 Common Issues & Solutions
-
-### Issue 1: Build Fails
-**Giải pháp:**
-```powershell
-# Clear cache và rebuild
-docker-compose build --no-cache
-
-# Hoặc pull individual images
-docker pull apache/spark:3.5.5
-docker pull confluentinc/cp-kafka:7.7.0
-```
-
-### Issue 2: Port Conflicts
-**Kiểm tra:**
-```powershell
-netstat -an | findstr ":8080\|:9092"
-```
-**Giải pháp:** Tắt các ứng dụng khác hoặc thay đổi ports trong `docker-compose.yml`
-
-### Issue 3: Memory Issues
-**Kiểm tra:**
-```powershell
-docker system info | findstr "Total Memory"
-```
-**Giải pháp:** Tăng memory allocation cho Docker Desktop (Settings > Resources)
-
-### Issue 4: Slow Startup
-**Bình thường:** Services cần 2-3 phút để khởi động hoàn toàn
-**Kiểm tra:** `docker-compose logs [service-name]`
-
-## 🔧 Maintenance Commands
+## Common Commands
 
 ```powershell
-# Stop platform
-.\scripts\stop-platform.bat
+# Stop all services
+docker-compose down
 
 # View logs
-docker-compose logs -f [service-name]
+docker-compose logs -f
 
-# Restart service
-docker-compose restart [service-name]
+# Clean up (removes all data)
+docker-compose down -v
 
-# Complete cleanup
-.\scripts\cleanup.bat
-
-# Troubleshooting
-.\scripts\troubleshoot.bat
+# Restart services
+docker-compose restart
 ```
 
-## 📊 Performance Monitoring
+## Troubleshooting
 
-```powershell
-# Real-time stats
-docker stats
-
-# Resource usage
-docker system df
-
-# Service health
-.\scripts\health-check.bat
-```
-
-## 🎯 Next Steps
-
-1. **Explore Examples**: Check `/scripts/` folder for sample applications
-2. **Custom Development**: Add your own Spark jobs to `/scripts/`
-3. **Production Setup**: Review `docker-compose.prod.yml` for production deployment
-4. **Monitoring**: Set up Grafana/Prometheus for advanced monitoring
-
-## 📞 Support
-
-- **Logs**: `docker-compose logs [service-name]`
-- **Debug**: `docker-compose exec [service-name] bash`
-- **Troubleshoot**: `.\scripts\troubleshoot.bat`
-
----
-**Happy Data Engineering! 🚀**
+- **Port conflicts**: Change ports in docker-compose.yml
+- **Memory issues**: Increase Docker Desktop memory allocation
+- **Slow startup**: Wait 2-3 minutes for all services to start

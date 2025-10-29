@@ -61,12 +61,6 @@ produce: ## Start Kafka producer (usage: make produce TOPIC=my-topic)
 		--bootstrap-server kafka-broker-1:29092 \
 		--topic $(TOPIC)
 
-delta-example: ## Run Delta Lake example
-	@echo "Running Delta Lake example..."
-	docker-compose exec spark-master spark-submit \
-		--master spark://spark-master:7077 \
-		--deploy-mode client \
-		/opt/spark/scripts/delta-lake-example.py
 
 spark-shell: ## Open Spark shell
 	docker-compose exec spark-master spark-shell \
@@ -85,8 +79,6 @@ minio-client: ## Open MinIO client
 		minio/mc:latest \
 		-c "mc alias set minio http://minio:9000 minioadmin minioadmin123 && /bin/sh"
 
-postgres-client: ## Connect to PostgreSQL
-	docker-compose exec postgres psql -U hive -d hive_metastore
 
 restart: down up ## Restart all services
 

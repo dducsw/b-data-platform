@@ -185,7 +185,7 @@ services:
 
   # Apache Gravitino - Universal Metadata Management
   gravitino:
-    image: datastrato/gravitino:1.0.0
+    image: apache/gravitino:1.0.0
     container_name: gravitino
     ports:
       - "8090:8090"

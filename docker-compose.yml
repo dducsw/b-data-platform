@@ -6,13 +6,13 @@ services:
     container_name: minio
     ports:
       - "9000:9000"
-      - "9001:9001"
+      - "9002:9002"  # Changed from 9001 to 9002 for console
     volumes:
       - minio_data:/data
     environment:
       MINIO_ACCESS_KEY: minioadmin
       MINIO_SECRET_KEY: minioadmin123
-    command: server /data --console-address ":9001"
+    command: server /data --console-address ":9002"  # Changed to 9002
     networks:
       - data-platform
 
@@ -188,7 +188,8 @@ services:
     image: apache/gravitino:latest
     container_name: gravitino
     ports:
-      - "8090:8090"
+      - "8090:8090"   # Gravitino server
+      - "9001:9001"   # Iceberg REST service
     environment:
       GRAVITINO_ROOT_DIR: /opt/gravitino
       GRAVITINO_SERVER_SHUTDOWN_TIMEOUT: 60s

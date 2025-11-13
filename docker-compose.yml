@@ -1,5 +1,36 @@
 
 services:
+  # PostgreSQL Database
+  postgres:
+    image: postgres:15
+    container_name: postgres
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres123
+      POSTGRES_DB: postgres_db
+      POSTGRES_MULTIPLE_DATABASES: iceberg_meta
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./config/rest/init_db.sql:/docker-entrypoint-initdb.d/init-db.sql
+    networks:
+      - data-platform
+
+  # Schema Registry
+  schema-registry:
+    image: confluentinc/cp-schema-registry:7.7.0
+    container_name: schema-registry
+    ports:
+      - "8088:8081"
+    depends_on:
+      - kafka-broker-1
+    environment:
+      SCHEMA_REGISTRY_KAFKASTORE_BOOTSTRAP_SERVERS: PLAINTEXT://kafka-broker-1:29092
+      SCHEMA_REGISTRY_HOST_NAME: schema-registry
+      SCHEMA_REGISTRY_LISTENERS: http://0.0.0.0:8081
+    networks:
+      - data-platform
   # MinIO Object Storage
   minio:
     image: minio/minio:latest
@@ -32,7 +63,7 @@ services:
     entrypoint: >
       /bin/sh -c "
       /usr/bin/mc alias set myminio http://minio:9000 minioadmin minioadmin123;
-      /usr/bin/mc mb myminio/data-lake --ignore-existing;
+      /usr/bin/mc mb myminio/lake --ignore-existing;
       /usr/bin/mc mb myminio/warehouse --ignore-existing;
       exit 0;
       "
@@ -133,6 +164,8 @@ services:
     environment:
       KAFKA_CLUSTERS_0_NAME: local
       KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kafka-broker-1:29092
+    networks:
+      - data-platform
 
 
   # Spark Master
@@ -148,10 +181,13 @@ services:
       - SPARK_MASTER_PORT=7077
       - SPARK_MASTER_WEBUI_PORT=8080
       - ICEBERG_VERSION=1.9.2
-      - SPARK_JARS_PACKAGES=org.apache.iceberg:iceberg-spark-runtime-3.5_2.12:1.9.2,org.apache.hadoop:hadoop-aws:3.3.4
+      - AWS_REGION=us-east-1
+      - AWS_ACCESS_KEY_ID=minioadmin
+      - AWS_SECRET_ACCESS_KEY=minioadmin123
+      - SPARK_JARS_PACKAGES=org.apache.iceberg:iceberg-spark-runtime-3.5_2.12:1.9.2,org.apache.hadoop:hadoop-aws:3.3.4,org.apache.spark:spark-sql-kafka-0-10_2.12:3.5.5,org.apache.kafka:kafka-clients:3.4.1
     volumes:
       - ./data:/opt/spark/data
-      - ./config/spark:/opt/spark/conf
+      - ./config/spark/spark-defaults.conf:/opt/spark/conf/spark-defaults.conf
       - ./scripts:/opt/spark/scripts
     networks:
       - data-platform
@@ -171,10 +207,13 @@ services:
       - SPARK_WORKER_MEMORY=2g
       - SPARK_WORKER_CORES=2
       - ICEBERG_VERSION=1.9.2
-      - SPARK_JARS_PACKAGES=org.apache.iceberg:iceberg-spark-runtime-3.5_2.12:1.9.2,org.apache.hadoop:hadoop-aws:3.3.4
+      - AWS_REGION=us-east-1
+      - AWS_ACCESS_KEY_ID=minioadmin
+      - AWS_SECRET_ACCESS_KEY=minioadmin123
+      - SPARK_JARS_PACKAGES=org.apache.iceberg:iceberg-spark-runtime-3.5_2.12:1.9.2,org.apache.hadoop:hadoop-aws:3.3.4,org.apache.spark:spark-sql-kafka-0-10_2.12:3.5.5,org.apache.kafka:kafka-clients:3.4.1
     volumes:
       - ./data:/opt/spark/data
-      - ./config/spark:/opt/spark/conf
+      - ./config/spark/spark-defaults.conf:/opt/spark/conf/spark-defaults.conf
       - ./scripts:/opt/spark/scripts
     networks:
       - data-platform
@@ -194,32 +233,42 @@ services:
       - SPARK_WORKER_MEMORY=2g
       - SPARK_WORKER_CORES=2
       - ICEBERG_VERSION=1.9.2
-      - SPARK_JARS_PACKAGES=org.apache.iceberg:iceberg-spark-runtime-3.5_2.12:1.9.2,org.apache.hadoop:hadoop-aws:3.3.4
+      - AWS_REGION=us-east-1
+      - AWS_ACCESS_KEY_ID=minioadmin
+      - AWS_SECRET_ACCESS_KEY=minioadmin123
+      - SPARK_JARS_PACKAGES=org.apache.iceberg:iceberg-spark-runtime-3.5_2.12:1.9.2,org.apache.hadoop:hadoop-aws:3.3.4,org.apache.spark:spark-sql-kafka-0-10_2.12:3.5.5,org.apache.kafka:kafka-clients:3.4.1
     volumes:
       - ./data:/opt/spark/data
-      - ./config/spark:/opt/spark/conf
+      - ./config/spark/spark-defaults.conf:/opt/spark/conf/spark-defaults.conf
       - ./scripts:/opt/spark/scripts
     networks:
       - data-platform
 
-  # Apache Gravitino - Universal Metadata Management
-  gravitino:
-    image: apache/gravitino:latest
-    container_name: gravitino
+
+  # Iceberg REST Catalog (compatible with Iceberg 1.9.2)
+  iceberg-rest:
+    build: ./docker/rest
+    container_name: iceberg-rest
     ports:
-      - "8090:8090"   # Gravitino server
-      - "9001:9001"   # Iceberg REST service
+      - "8181:8181"
     environment:
-      GRAVITINO_ROOT_DIR: /opt/gravitino
-      GRAVITINO_SERVER_SHUTDOWN_TIMEOUT: 60s
-      # PostgreSQL backend configuration
-    volumes:
-      - gravitino_data:/opt/gravitino/data
-      - ./config/gravitino:/opt/gravitino/conf
+      CATALOG_WAREHOUSE: s3a://lake/
+      CATALOG_IO__IMPL: org.apache.iceberg.aws.s3.S3FileIO
+      CATALOG_S3_ENDPOINT: http://minio:9000
+      CATALOG_S3_ACCESS__KEY__ID: minioadmin
+      CATALOG_S3_SECRET__ACCESS__KEY: minioadmin123
+      CATALOG_S3_PATH__STYLE__ACCESS: true
+      # Thêm cấu hình metabackend Postgres
+      CATALOG_METASTORE_IMPL: org.apache.iceberg.jdbc.JdbcCatalog
+      CATALOG_JDBC_URI: jdbc:postgresql://postgres:5432/iceberg_meta
+      CATALOG_JDBC_USER: postgres
+      CATALOG_JDBC_PASSWORD: postgres123
+      AWS_REGION: us-east-1
     networks:
       - data-platform
     depends_on:
       - minio
+      - postgres
 
 volumes:
   minio_data:
@@ -227,6 +276,7 @@ volumes:
   kafka_controller_data:
   kafka_broker1_data:
   kafka_broker2_data:
+  postgres_data:
 
 networks:
   data-platform:

@@ -64,3 +64,4 @@ spark-warehouse/
 
 # Local configuration overrides
 docker-compose.override.yml
+note.md

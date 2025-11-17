@@ -6,24 +6,25 @@ Direct script to create table and insert 3 sample records
 """
 
 from pyspark.sql import SparkSession
-from pyspark.sql.types import StructType, StructField, StringType, IntegerType, TimestampType, DoubleType
-from datetime import datetime
+from pyspark.sql.types import StructType, StructField, StringType, DoubleType, BooleanType, TimestampType
+from pyspark.sql.functions import col, to_timestamp, when
 
 print("🚀 Simple Apache Iceberg Script")
 print("=" * 40)
 
 # Create Spark session
 print("⚡ Creating Spark session...")
-spark = SparkSession.builder \
-    .appName("SimpleIcebergScript") \
-    .config("spark.sql.extensions", "org.apache.iceberg.spark.extensions.IcebergSparkSessionExtensions") \
-    .config("spark.sql.catalog.iceberg", "org.apache.iceberg.spark.SparkCatalog") \
-    .config("spark.sql.catalog.iceberg.type", "rest") \
-    .config("spark.sql.catalog.iceberg.uri", "http://iceberg-rest:8181") \
-    .config("spark.sql.catalog.iceberg.table-default.format-version", "2") \
-    .config("spark.sql.defaultCatalog", "iceberg") \
+spark = (
+    SparkSession.builder 
+    .appName("SimpleIcebergScript") 
+    .config("spark.sql.extensions", "org.apache.iceberg.spark.extensions.IcebergSparkSessionExtensions") 
+    .config("spark.sql.catalog.iceberg", "org.apache.iceberg.spark.SparkCatalog") 
+    .config("spark.sql.catalog.iceberg.type", "rest") 
+    .config("spark.sql.catalog.iceberg.uri", "http://iceberg-rest:8181")
+    .config("spark.sql.catalog.iceberg.table-default.format-version", "2") 
+    .config("spark.sql.defaultCatalog", "iceberg") 
     .getOrCreate()
-    
+)    
 spark.sparkContext.setLogLevel("ERROR")
 try:
     # Create namespace
@@ -34,12 +35,15 @@ try:
     print("📋 Creating BusGPS table with Iceberg v2 format...")
     spark.sql("""
         CREATE TABLE IF NOT EXISTS iceberg.demo.bus_gps (
-            bus_id STRING,
-            route_id STRING,
-            latitude DOUBLE,
-            longitude DOUBLE,
+            datetime TIMESTAMP, 
+            date STRING,
+            vehicle STRING,
+            lng DOUBLE,
+            lat DOUBLE,
+            driver STRING,
             speed DOUBLE,
-            timestamp TIMESTAMP
+            door_up BOOLEAN,
+            door_down BOOLEAN
         ) USING iceberg
         TBLPROPERTIES (
             'format-version' = '2',
@@ -50,26 +54,36 @@ try:
     print("✅ Table created!")
     
     # Create sample data
-    print("📊 Creating 3 sample records...")
-    data = [
-        ("BUS_001", "ROUTE_1", 10.7769, 106.7009, 45.5, datetime(2024, 10, 29, 10, 30, 0)),
-        ("BUS_002", "ROUTE_2", 10.7829, 106.6819, 38.2, datetime(2024, 10, 29, 10, 31, 0)),
-        ("BUS_003", "ROUTE_1", 10.7909, 106.6919, 52.1, datetime(2024, 10, 29, 10, 32, 0))
-    ]
-    
+    print("📊 Creating records...")
     # Define schema
     schema = StructType([
-        StructField("bus_id", StringType(), True),
-        StructField("route_id", StringType(), True),
-        StructField("latitude", DoubleType(), True),
-        StructField("longitude", DoubleType(), True),
-        StructField("speed", DoubleType(), True),
-        StructField("timestamp", TimestampType(), True)
+        StructField("datetime", StringType(), True),
+        StructField("date", StringType(), True),
+        StructField("vehicle", StringType(), True),
+        StructField("lng", StringType(), True),
+        StructField("lat", StringType(), True),
+        StructField("driver", StringType(), True),
+        StructField("speed", StringType(), True),
+        StructField("door_up", StringType(), True),
+        StructField("door_down", StringType(), True)
     ])
-    
+
+    raw = (
+        spark.read
+            .option("header", True)
+            .csv("data/raw_2025-04-01.csv")
+    )
     # Create DataFrame
-    df = spark.createDataFrame(data, schema)
-    
+    df = (
+        raw
+        .withColumn("datetime", to_timestamp(col("datetime"), "yyyy-MM-dd HH:mm:ss"))
+        .withColumn("lng", col("lng").cast("double"))
+        .withColumn("lat", col("lat").cast("double"))
+        .withColumn("speed", col("speed").cast("double"))
+        .withColumn("door_up",  when(col("door_up").isin("True", "true", "1"), True).otherwise(False))
+        .withColumn("door_down", when(col("door_down").isin("True", "true", "1"), True).otherwise(False))
+        .select("datetime","date","vehicle","lng","lat","driver","speed","door_up","door_down")
+    )    
     # Write to Iceberg
     print("💾 Writing data to Iceberg table...")
     df.write \
@@ -77,23 +91,24 @@ try:
         .mode("append") \
         .saveAsTable("iceberg.demo.bus_gps")
     print("✅ Data written!")
-    
-    # Read and display data
+
+    # 4. Read back
     print("🔍 Reading data from table...")
     result_df = spark.table("iceberg.demo.bus_gps")
     print(f"📈 Total records: {result_df.count()}")
-    
-    print("\n📋 All BusGPS data:")
-    result_df.show(truncate=False)
-    
-    # Simple query
-    print("\n🚍 Buses on ROUTE_1:")
+
+    print("\n📋 Sample rows from BusGPS:")
+    result_df.show(10, truncate=False)
+
+    # 5. Simple query với đúng cột đang có
+    print("\n🚍 Sample vehicles and positions:")
     spark.sql("""
-        SELECT bus_id, speed, latitude, longitude 
-        FROM iceberg.demo.bus_gps 
-        WHERE route_id = 'ROUTE_1'
-    """).show()
-    
+        SELECT vehicle, speed, lng, lat, datetime
+        FROM iceberg.demo.bus_gps
+        ORDER BY datetime
+        LIMIT 10
+    """).show(truncate=False)
+
     print("\n🎉 Script completed successfully!")
     
 except Exception as e:

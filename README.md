@@ -77,7 +77,7 @@ Once all services are running, you can access:
 Run the included Iceberg example:
 
 ```bash
-docker-compose exec spark-master spark-submit --master spark://spark-master:7077 /opt/spark/scripts/iceberg-example.py
+docker-compose exec spark-master spark-submit --master spark://spark-master:7077 scripts/rest-example.py
 ```
 
 
@@ -85,17 +85,10 @@ docker-compose exec spark-master spark-submit --master spark://spark-master:7077
 
 ```bash
 # Create a topic
-docker-compose exec kafka-broker-1 kafka-topics.sh \
-    --bootstrap-server kafka-broker-1:29092 \
-    --create \
-    --topic my-topic \
-    --partitions 3 \
-    --replication-factor 2
+docker-compose exec kafka-broker-1 kafka-topics.sh --bootstrap-server kafka-broker-1:29092 --create --topic bus_gps_raw --partitions 3 --replication-factor 2
 
 # List topics
-docker-compose exec kafka-broker-1 kafka-topics.sh \
-    --bootstrap-server kafka-broker-1:29092 \
-    --list
+docker-compose exec kafka-broker-1 kafka-topics.sh --bootstrap-server kafka-broker-1:29092 --list
 ```
 
 ### MinIO Operations

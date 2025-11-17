@@ -51,11 +51,7 @@ try:
     
     # Create sample data
     print("* Creating 3 sample records...")
-    data = [
-        ("BUS_001", "ROUTE_1", 10.7769, 106.7009, 45.5, datetime(2024, 10, 29, 10, 30, 0)),
-        ("BUS_002", "ROUTE_2", 10.7829, 106.6819, 38.2, datetime(2024, 10, 29, 10, 31, 0)),
-        ("BUS_003", "ROUTE_1", 10.7909, 106.6919, 52.1, datetime(2024, 10, 29, 10, 32, 0))
-    ]
+    data = spark.read.csv("data/raw_2025-04-01.csv", header=True, inferSchema=True)
     
     # Define schema
     schema = StructType([

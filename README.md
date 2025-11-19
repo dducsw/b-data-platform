@@ -85,7 +85,7 @@ docker-compose exec spark-master spark-submit --master spark://spark-master:7077
 
 ```bash
 # Create a topic
-docker-compose exec kafka-broker-1 kafka-topics.sh --bootstrap-server kafka-broker-1:29092 --create --topic bus_gps_raw --partitions 3 --replication-factor 2
+docker-compose exec kafka-broker-1 kafka-topics.sh --bootstrap-server kafka-broker-1:29092 --create --topic bus_gps_demo --partitions 3 --replication-factor 2
 
 # List topics
 docker-compose exec kafka-broker-1 kafka-topics.sh --bootstrap-server kafka-broker-1:29092 --list

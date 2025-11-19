@@ -60,6 +60,10 @@ RUN wget "https://repo1.maven.org/maven2/org/apache/hadoop/hadoop-aws/3.3.4/hado
 RUN wget "https://repo1.maven.org/maven2/org/apache/spark/spark-sql-kafka-0-10_2.12/3.5.5/spark-sql-kafka-0-10_2.12-3.5.5.jar" \
     -O $SPARK_HOME/jars/spark-sql-kafka-0-10_2.12-3.5.5.jar
 
+    # Add Spark Streaming Kafka (DStream API) — OPTIONAL
+RUN wget "https://repo1.maven.org/maven2/org/apache/spark/spark-streaming-kafka-0-10_2.12/3.5.5/spark-streaming-kafka-0-10_2.12-3.5.5.jar" \
+    -O $SPARK_HOME/jars/spark-streaming-kafka-0-10_2.12-3.5.5.jar
+    
 RUN wget "https://repo1.maven.org/maven2/org/apache/spark/spark-token-provider-kafka-0-10_2.12/3.5.5/spark-token-provider-kafka-0-10_2.12-3.5.5.jar" \
     -O $SPARK_HOME/jars/spark-token-provider-kafka-0-10_2.12-3.5.5.jar && \
     wget "https://repo1.maven.org/maven2/org/apache/kafka/kafka-clients/3.4.1/kafka-clients-3.4.1.jar" \

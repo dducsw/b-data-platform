@@ -34,8 +34,8 @@ spark.sparkContext.setLogLevel("ERROR")
 
 
 KAFKA_BOOTSTRAP = "kafka-broker-1:29092"
-TOPIC = "bus_gps_raw"
-CATALOG_TABLE = "iceberg.demo.bus_gps_raw_v3"  # phải khớp với spark-defaults.conf
+TOPIC = "bus_gps_demo"
+CATALOG_TABLE = "iceberg.demo.bus_gps_demo_v3"  # phải khớp với spark-defaults.conf
 
 # Schema cho payload (khi producer gửi JSON per record)
 schema = StructType([
@@ -70,7 +70,7 @@ CREATE TABLE IF NOT EXISTS {CATALOG_TABLE} (
 ) USING iceberg
 """)
 print(f"✅ Using REST catalog table: {CATALOG_TABLE}")
-print("Start to read stream from bus_gps_raw topic")
+print("Start to read stream from bus_gps_demo topic")
 
 def write_batch_to_iceberg(batch_df, batch_id):
     # bỏ qua batch rỗng
@@ -107,7 +107,7 @@ value_df = kafka_df.selectExpr("CAST(value AS STRING) AS json_str")
 parsed = value_df.select(from_json(col("json_str"), schema).alias("data")).select("data.*")
 
 # start streaming với foreachBatch
-checkpoint = "s3a://warehouse/checkpoints/bus_gps_raw_v3"  # hoặc path local /tmp/checkpoints/...
+checkpoint = "s3a://warehouse/checkpoints/bus_gps_demo_v3"  # hoặc path local /tmp/checkpoints/...
 query = parsed.writeStream \
     .foreachBatch(write_batch_to_iceberg) \
     .option("checkpointLocation", checkpoint) \

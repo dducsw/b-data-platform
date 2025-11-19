@@ -7,10 +7,9 @@ from tqdm import tqdm
 # Kafka config
 # =========================================
 
-# Host (máy của bạn) nói chuyện với Kafka qua 9092 & 9094 (đã map trong docker-compose)
 BOOTSTRAP_SERVERS = ['localhost:9092', 'localhost:9094']
 
-TOPIC_NAME = "bus_gps_raw"
+TOPIC_NAME = "bus_gps_demo"
 CSV_FILE = "./data/raw_2025-04-01.csv"
 
 producer = KafkaProducer(
@@ -35,7 +34,6 @@ def send_csv_to_kafka():
 
         for row in tqdm(reader, desc="Sending to Kafka"):
 
-            # Map schema rõ ràng theo consumer.py (9 fields)
             payload = {
                 "datetime": row.get("datetime"),
                 "date": row.get("date"),
@@ -48,7 +46,6 @@ def send_csv_to_kafka():
                 "door_down": row.get("door_down"),
             }
 
-            # vehicle làm key → giúp Kafka hash ra partition
             key = str(payload["vehicle"]) if payload["vehicle"] else "unknown"
 
             producer.send(

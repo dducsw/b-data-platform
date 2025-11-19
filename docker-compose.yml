@@ -287,13 +287,8 @@ services:
       AWS_REGION: us-east-1
       AWS_ACCESS_KEY_ID: minioadmin
       AWS_SECRET_ACCESS_KEY: minioadmin123
-<<<<<<< HEAD
       CATALOG_WAREHOUSE: s3a://warehouse/
       CATALOG_IO__IMPL: org.apache.iceberg.aws.s3.S3FileIO # org.apache.iceberg.aws.s3.S3FileIO # 
-=======
-      CATALOG_WAREHOUSE: s3a://lake/
-      CATALOG_IO__IMPL: org.apache.iceberg.aws.s3.S3FileIO
->>>>>>> origin/Kha/feature/realtime-gps
       CATALOG_S3_ENDPOINT: http://minio:9000
       CATALOG_S3_ACCESS__KEY__ID: minioadmin
       CATALOG_S3_SECRET__ACCESS__KEY: minioadmin123

@@ -6,7 +6,7 @@ from kafka import KafkaProducer
 # --- CẤU HÌNH ---
 KAFKA_TOPIC = 'test' 
 KAFKA_SERVER = 'localhost:9092'
-FILE_PATH = './data/tostream10M.parquet' 
+FILE_PATH = './data/raw_data.parquet' 
 
 # Hàm chuyển đổi dữ liệu sang JSON (xử lý ngày tháng để không bị lỗi)
 def json_serializer(data):

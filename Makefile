@@ -44,11 +44,11 @@ status: ## Show service status
 
 kafka-topics: ## List Kafka topics
 	@echo "Kafka Topics:"
-	docker-compose exec kafka-broker-1 kafka-topics.sh --bootstrap-server kafka-broker-1:29092 --list
+	docker-compose exec kafka-broker-1 kafka-topics --bootstrap-server kafka-broker-1:29092 --list
 
 create-topic: ## Create a test topic (usage: make create-topic TOPIC=my-topic)
 	@if [ -z "$(TOPIC)" ]; then echo "Usage: make create-topic TOPIC=topic-name"; exit 1; fi
-	docker-compose exec kafka-broker-1 kafka-topics.sh \
+	docker-compose exec kafka-broker-1 kafka-topics \
 		--bootstrap-server kafka-broker-1:29092 \
 		--create --if-not-exists \
 		--topic $(TOPIC) \
@@ -57,7 +57,7 @@ create-topic: ## Create a test topic (usage: make create-topic TOPIC=my-topic)
 
 produce: ## Start Kafka producer (usage: make produce TOPIC=my-topic)
 	@if [ -z "$(TOPIC)" ]; then echo "Usage: make produce TOPIC=topic-name"; exit 1; fi
-	docker-compose exec kafka-broker-1 kafka-console-producer.sh \
+	docker-compose exec kafka-broker-1 kafka-console-producer \
 		--bootstrap-server kafka-broker-1:29092 \
 		--topic $(TOPIC)
 

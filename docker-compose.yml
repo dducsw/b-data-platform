@@ -1,4 +1,3 @@
-
 services:
   # MySQL Database
   mysql:
@@ -54,7 +53,10 @@ services:
       retries: 3
       start_period: 40s
     networks:
-      - data-platform
+      data-platform:
+        aliases:
+          - minio
+          - lake.minio
 
   # MinIO bucket initialization
   minio-init:
@@ -301,13 +303,14 @@ services:
       - "9030:9030"   # FE MySQL
       - "9010:9010"   # FE Internal
     environment:
-      FE_SERVERS: fe1:172.18.0.2:9010     # IP container FE
+      FE_SERVERS: fe1:172.20.0.98:9010     # IP tĩnh FE mới
       FE_ID: 1
     volumes:
       - doris_fe_data:/opt/doris/fe/doris-meta
+      - ./config/doris/fe.conf:/opt/doris/fe/conf/fe.conf
     networks:
       data-platform:
-        ipv4_address: 172.18.0.2
+        ipv4_address: 172.20.0.98
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8030"]
       interval: 30s
@@ -323,14 +326,15 @@ services:
     depends_on:
       - doris-fe
     environment:
-      FE_SERVERS: fe1:172.18.0.2:9010   # trỏ tới FE IP
-      BE_ADDR: 172.18.0.3:9050      # IP container BE
-      PRIORITY_NETWORKS: 172.18.0.0/16  # cực kỳ quan trọng
+      FE_SERVERS: fe1:172.20.0.98:9010   # trỏ tới FE IP mới
+      BE_ADDR: 172.20.0.99:9050      # IP tĩnh BE mới
+      PRIORITY_NETWORKS: 172.20.0.0/16
     volumes:
       - doris_be_data:/opt/doris/be/storage
+      - ./config/doris/be.conf:/opt/doris/be/conf/be.conf
     networks:
       data-platform:
-        ipv4_address: 172.18.0.3
+        ipv4_address: 172.20.0.99
 
   grafana:
     image: grafana/grafana:latest
@@ -359,6 +363,6 @@ networks:
     driver: bridge
     ipam:
       config:
-        - subnet: 172.18.0.0/16
+        - subnet: 172.20.0.0/16
 
 

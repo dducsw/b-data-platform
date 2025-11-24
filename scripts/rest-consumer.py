@@ -6,6 +6,9 @@ from pyspark.sql.functions import from_json, col, to_timestamp, when
 spark = SparkSession.builder \
     .appName("KafkaIcebergRestConsumer") \
     .config("spark.sql.catalog.iceberg.type", "rest") \
+    .config("spark.sql.catalog.iceberg.uri", "http://iceberg-rest:8181") \
+    .config("spark.sql.catalog.iceberg.s3.path-style-access", "true") \
+    .config("spark.hadoop.fs.s3a.path.style.access", "true") \
     .getOrCreate()
 spark.sparkContext.setLogLevel("ERROR")
 

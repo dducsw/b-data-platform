@@ -69,3 +69,43 @@ SHOW ROUTINE LOAD FOR bus_gps_job;
 
 
 
+6. Tạo external Catalog cho Doris kt nối với Lakehouse
+CREATE CATALOG iceberg PROPERTIES (
+    'type'='iceberg',
+    'iceberg.catalog.type'='rest',
+    'uri'='http://iceberg-rest:8181',
+    'warehouse'='s3a://lake/',
+    's3.endpoint'='http://minio:9000',
+    's3.access_key'='minioadmin',
+    's3.secret_key'='minioadmin123',
+    's3.path_style'='true'
+);
+
+'uri' = 'http://iceberg-rest:8181',
+
+
+
+-- 1. Thoát ra ngoài để tránh lỗi session
+SWITCH internal;
+
+-- 2. Xóa catalog cấu hình sai
+DROP CATALOG IF EXISTS iceberg;
+
+-- 3. Tạo lại với cấu hình Path Style Access (Bắt buộc cho MinIO)
+CREATE CATALOG iceberg PROPERTIES (
+    "type" = "iceberg",
+    "iceberg.catalog.type" = "rest",
+    "uri" = "http://iceberg-rest:8181",
+    "s3.endpoint" = "http://minio:9000",
+    "s3.access_key" = "minioadmin",
+    "s3.secret_key" = "minioadmin123",
+    "s3.region" = "us-east-1",
+    "use_path_style" = "true",
+    "s3.connection.ssl.enabled" = "false"
+);
+
+SHOW CREATE CATALOG iceberg
+
+SELECT * FROM iceberg.test.bus_gps LIMIT 10;
+
+7.

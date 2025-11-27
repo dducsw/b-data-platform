@@ -50,26 +50,36 @@ print(f"✅ Using REST catalog table: {CATALOG_TABLE}")
 print("Start to read stream from bus_gps_demo topic")
 
 def write_batch_to_iceberg(batch_df, batch_id):
-    # bỏ qua batch rỗng
-    if batch_df.isEmpty():
+    # log số dòng trong batch
+    count = batch_df.count()
+    print(f"[DEBUG] Batch {batch_id} - rows in batch_df: {count}")
+
+    # nếu batch rỗng thì bỏ qua
+    if count == 0:
+        print(f"[DEBUG] Batch {batch_id} is empty, skip write.")
         return
 
-    rec_count = batch_df.count()
-    print(f"[DEBUG] Batch {batch_id}: received {rec_count} records. Showing up to 10 rows:")
+    print(f"[DEBUG] Batch {batch_id}: showing up to 10 rows BEFORE cast:")
     batch_df.show(10, truncate=False)
 
-    # convert kiểu dữ liệu; producer gửi CSV via JSON -> các cột ban đầu là string
-    df = batch_df \
-        .withColumn("datetime", to_timestamp(col("datetime"), "yyyy-MM-dd HH:mm:ss")) \
-        .withColumn("lng", col("lng").cast("double")) \
-        .withColumn("lat", col("lat").cast("double")) \
-        .withColumn("speed", col("speed").cast("double")) \
-        .withColumn("door_up", when(col("door_up").isin("True", "true", "1"), True).otherwise(False)) \
-        .withColumn("door_down", when(col("door_down").isin("True", "true", "1"), True).otherwise(False)) \
+    # convert kiểu dữ liệu
+    df = (
+        batch_df
+        .withColumn("datetime", to_timestamp(col("datetime"), "yyyy-MM-dd HH:mm:ss"))
+        .withColumn("lng", col("lng").cast("double"))
+        .withColumn("lat", col("lat").cast("double"))
+        .withColumn("speed", col("speed").cast("double"))
+        .withColumn("door_up", when(col("door_up").isin("True", "true", "1"), True).otherwise(False))
+        .withColumn("door_down", when(col("door_down").isin("True", "true", "1"), True).otherwise(False))
         .select("datetime","date","vehicle","lng","lat","driver","speed","door_up","door_down")
+    )
+
+    print(f"[DEBUG] Batch {batch_id}: AFTER cast, about to write to Iceberg")
+    df.show(10, truncate=False)
 
     # ghi vào Iceberg (append)
     df.writeTo(CATALOG_TABLE).append()
+    print(f"[DEBUG] Batch {batch_id}: written {count} rows to {CATALOG_TABLE}")
 
 kafka_df = spark.readStream \
     .format("kafka") \
@@ -88,7 +98,7 @@ checkpoint = "s3a://warehouse/checkpoints/bus_gps_demo"  # hoặc path local /tm
 query = parsed.writeStream \
     .foreachBatch(write_batch_to_iceberg) \
     .option("checkpointLocation", checkpoint) \
-    .trigger(processingTime="90 seconds") \
+    .trigger(processingTime="5 seconds") \
     .start()
 
 query.awaitTermination()

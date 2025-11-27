@@ -24,7 +24,8 @@ ENV SPARK_JARS_PACKAGES="org.apache.iceberg:iceberg-spark-runtime-3.5_2.12:1.9.2
 
 
 # Install Python packages for Iceberg
-RUN pip3 install --break-system-packages pyiceberg[s3fs,pyarrow]
+RUN pip3 install --break-system-packages pyiceberg[s3fs,pyarrow] && pip3 install --break-system-packages protobuf==5.26.1
+
 # Download and install Spark
 RUN wget "https://archive.apache.org/dist/spark/spark-${SPARK_VERSION}/spark-${SPARK_VERSION}-bin-hadoop${HADOOP_VERSION}.tgz" \
     && tar -xzf "spark-${SPARK_VERSION}-bin-hadoop${HADOOP_VERSION}.tgz" \

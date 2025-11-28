@@ -74,6 +74,10 @@ RUN wget "https://repo1.maven.org/maven2/org/apache/spark/spark-token-provider-k
 RUN wget "https://repo1.maven.org/maven2/org/apache/gravitino/gravitino-spark-connector-runtime-3.5_2.12/1.0.0/gravitino-spark-connector-runtime-3.5_2.12-1.0.0.jar" \
     -O $SPARK_HOME/jars/gravitino-spark-connector-runtime-3.5.jar
 
+# Download Spark Protobuf connector
+RUN wget "https://repo1.maven.org/maven2/org/apache/spark/spark-protobuf_2.12/3.5.5/spark-protobuf_2.12-3.5.5.jar" \
+    -O $SPARK_HOME/jars/spark-protobuf_2.12-3.5.5.jar
+
 # Create spark user
 RUN useradd -r -u 185 -g 0 spark && \
     mkdir -p $SPARK_HOME/work-dir && \

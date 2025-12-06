@@ -28,6 +28,8 @@ spark.sparkContext.setLogLevel("ERROR")
 try:
     # Create namespace
     print("📋 Creating namespace...")
+    spark.sql("DROP TABLE IF EXISTS iceberg.demo.bus_gps")
+    spark.sql("DROP NAMESPACE IF EXISTS iceberg.demo")
     spark.sql("CREATE NAMESPACE IF NOT EXISTS iceberg.demo")
     
     # Create table with format version 2

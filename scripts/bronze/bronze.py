@@ -1,7 +1,7 @@
 """
-Bronze Layer Table Definitions for UFMS
+Bronze Layer Table Definitions for
 =======================================
-Tạo các bảng Iceberg cho từng message chính trong UFMS.proto
+Tạo các bảng Iceberg cho từng message chính trong.proto
 """
 
 from pyspark.sql import SparkSession
@@ -18,13 +18,13 @@ spark = SparkSession.builder \
 
 spark.sparkContext.setLogLevel("ERROR")
 
-namespace = "bronze.ufms"
+namespace = "bronze"
 spark.sql(f"CREATE NAMESPACE IF NOT EXISTS {namespace}")
 
 tables = [
     # WayPoint
     ("waypoint", """
-        CREATE TABLE IF NOT EXISTS iceberg.bronze.ufms.waypoint (
+        CREATE TABLE IF NOT EXISTS iceberg.bronze.waypoint (
             vehicle STRING,
             driver STRING,
             speed FLOAT,
@@ -45,7 +45,7 @@ tables = [
     """),
     # BusWayPoint
     ("buswaypoint", """
-        CREATE TABLE IF NOT EXISTS iceberg.bronze.ufms.buswaypoint (
+        CREATE TABLE IF NOT EXISTS iceberg.bronze.buswaypoint (
             vehicle STRING,
             driver STRING,
             speed FLOAT,
@@ -68,7 +68,7 @@ tables = [
     """),
     # StudentCheckInPoint
     ("studentcheckin", """
-        CREATE TABLE IF NOT EXISTS iceberg.bronze.ufms.studentcheckin (
+        CREATE TABLE IF NOT EXISTS iceberg.bronze.studentcheckin (
             vehicle STRING,
             studentcode STRING,
             speed FLOAT,
@@ -84,7 +84,7 @@ tables = [
     """),
     # RegVehicle
     ("regvehicle", """
-        CREATE TABLE IF NOT EXISTS iceberg.bronze.ufms.regvehicle (
+        CREATE TABLE IF NOT EXISTS iceberg.bronze.regvehicle (
             vehicle STRING,
             vehicleType INT,
             driver STRING,
@@ -100,7 +100,7 @@ tables = [
     """),
     # RegDriver
     ("regdriver", """
-        CREATE TABLE IF NOT EXISTS iceberg.bronze.ufms.regdriver (
+        CREATE TABLE IF NOT EXISTS iceberg.bronze.regdriver (
             driver STRING,
             name STRING,
             datetimeIssue TIMESTAMP,
@@ -112,7 +112,7 @@ tables = [
     """),
     # RegCompany
     ("regcompany", """
-        CREATE TABLE IF NOT EXISTS iceberg.bronze.ufms.regcompany (
+        CREATE TABLE IF NOT EXISTS iceberg.bronze.regcompany (
             company STRING,
             name STRING,
             address STRING,
@@ -122,7 +122,7 @@ tables = [
     """),
     # BusTicketPoint
     ("busticketpoint", """
-        CREATE TABLE IF NOT EXISTS iceberg.bronze.ufms.busticketpoint (
+        CREATE TABLE IF NOT EXISTS iceberg.bronze.busticketpoint (
             vehicle STRING,
             routecode STRING,
             datetime TIMESTAMP,
@@ -142,7 +142,7 @@ tables = [
     """),
     # BusTicketStartEndPoint
     ("busticketstartend", """
-        CREATE TABLE IF NOT EXISTS iceberg.bronze.ufms.busticketstartend (
+        CREATE TABLE IF NOT EXISTS iceberg.bronze.busticketstartend (
             vehicle STRING,
             routecode STRING,
             datetime TIMESTAMP,
@@ -160,7 +160,7 @@ tables = [
     """),
     # BusWayPointBatch
     ("buswaypointbatch", """
-        CREATE TABLE IF NOT EXISTS iceberg.bronze.ufms.buswaypointbatch (
+        CREATE TABLE IF NOT EXISTS iceberg.bronze.buswaypointbatch (
             vehicle STRING,
             driver STRING,
             load_at TIMESTAMP

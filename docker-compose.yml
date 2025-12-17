@@ -255,23 +255,6 @@ services:
     networks:
       - data-platform
 
-  gravitino:
-    image: apache/gravitino:latest
-    container_name: gravitino
-    ports:
-      - "8090:8090"   # Gravitino server
-      - "9001:9001"   # Iceberg REST service
-    environment:
-      GRAVITINO_ROOT_DIR: /opt/gravitino
-      GRAVITINO_SERVER_SHUTDOWN_TIMEOUT: 60s
-      # PostgreSQL backend configuration
-    volumes:
-      - gravitino_data:/opt/gravitino/data
-      - ./config/gravitino:/opt/gravitino/conf
-    networks:
-      - data-platform
-    depends_on:
-      - minio
 
   # Iceberg REST Catalog (compatible with Iceberg 1.9.2)
   iceberg-rest:

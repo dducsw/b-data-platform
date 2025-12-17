@@ -1,193 +1,161 @@
+
 # Big Data Platform
 
-A comprehensive data platform built with Docker Compose, featuring Apache Spark 4.0, Apache Kafka 3.9 with KRaft, Apache Iceberg, Apache Gravitino, and MinIO.
+An integrated big data platform with modern components, deployed via Docker Compose. Suitable for streaming, batch processing, analytics, and metadata management.
 
-## 🏗️ Architecture
+## 🏗️ System Architecture
 
-This platform provides a complete big data ecosystem with the following components:
+Main components:
 
-### Core Components
-
-- **Apache Spark 3.5**: Distributed computing engine (1 Master + 2 Workers)
-- **Apache Kafka 3.9**: Streaming platform with KRaft mode (2 Brokers + 1 Controller)
-- **Apache Iceberg 1.9.2**: Open table format with ACID transactions and time travel
-- **Apache Gravitino**: Universal metadata management for multi-catalog data
-- **Iceberg REST Catalog 1.6.0**: RESTful catalog service for Iceberg tables
+- **Apache Spark 3.5**: Distributed computing engine (1 Master, 2 Workers)
+- **Apache Kafka 3.9 (KRaft)**: Streaming platform (2 Brokers, 1 Controller)
+- **Apache Iceberg 1.9.2**: ACID-compliant table format with time travel and schema evolution
+- **Iceberg REST Catalog**: Metadata management for Iceberg via REST API
+- **Apache Gravitino**: Universal metadata management, multi-catalog support
 - **MinIO**: S3-compatible object storage
+- **Doris**: OLAP database for big data analytics
+- **MySQL**: Metadata or application backend database
+- **Schema Registry**: Kafka schema management
+- **Kafka UI**: Kafka topic/message management interface
+- **Grafana**: Monitoring and data visualization
 
-### Key Features
+## ⚡ Quick Start
 
-- ✅ **ACID Transactions**: Iceberg provides ACID guarantees with snapshot isolation
-- ✅ **Time Travel**: Query historical versions of data with Iceberg snapshots
-- ✅ **Schema Evolution**: Safe schema changes without breaking existing queries
-- ✅ **Table Format V2**: Latest Iceberg format with merge-on-read and improved performance
-- ✅ **Universal Metadata**: Gravitino manages metadata across multiple data catalogs
-- ✅ **Stream Processing**:Data processing with Spark Streaming + Kafka
-- ✅ **Object Storage**: S3-compatible storage with MinIO
-- ✅ **Scalable**: Distributed processing with Spark cluster
-- ✅ **CI/CD**: GitHub Actions for automated testing and deployment
-
-## 🚀 Quick Start
-
-### Prerequisites
-
+### System Requirements
 - Docker & Docker Compose
 - Git
-- At least 8GB RAM (16GB recommended)
+- Minimum 8GB RAM (16GB recommended)
 - 20GB free disk space
 
-### 1. Clone the Repository
-
+### 1. Clone the repository
 ```bash
 git clone <repository-url>
 cd b-data-platform
 ```
 
-### 2. Start the Platform
-
+### 2. Start all services
 ```bash
-# Start all services
 docker-compose up -d
-
-# Or use the helper script (Linux/Mac)
-chmod +x scripts/*.sh
-./scripts/start-platform.sh
 ```
 
-### 3. Access the Services
-
-Once all services are running, you can access:
-
-| Service | URL | Credentials |
-|---------|-----|-------------|
-| Spark Master UI | http://localhost:8080 | - |
-| Spark Worker 1 UI | http://localhost:8081 | - |
-| Spark Worker 2 UI | http://localhost:8082 | - |
-| MinIO Console | http://localhost:9002 | minioadmin/minioadmin123 |
-| Apache Gravitino | http://localhost:8090 | - |
-| Gravitino Iceberg REST | http://localhost:9001 | - |
-| Iceberg REST Catalog | http://localhost:8181 | - |
-| Kafka Brokers | localhost:9092, localhost:9094 | - |
-| Kafka Controller | localhost:9093 | - |
+### 3. Access services
+| Service              | URL                        | Credentials                |
+|----------------------|----------------------------|----------------------------|
+| Spark Master UI      | http://localhost:8080      | -                          |
+| Spark Worker 1 UI    | http://localhost:8081      | -                          |
+| Spark Worker 2 UI    | http://localhost:8082      | -                          |
+| MinIO Console        | http://localhost:9002      | minioadmin/minioadmin123   |
+| Gravitino UI         | http://localhost:8090      | -                          |
+| Iceberg REST Catalog | http://localhost:8181      | -                          |
+| Doris FE             | http://localhost:8030      | -                          |
+| Doris BE             | http://localhost:8040      | -                          |
+| Kafka UI             | http://localhost:8888      | -                          |
+| Schema Registry      | http://localhost:8088      | -                          |
+| Grafana              | http://localhost:3000      | admin/admin                |
 
 ## 📊 Usage Examples
 
-### Apache Iceberg Example
-
-Run the included Iceberg example:
-
+### Run Spark submit with Iceberg
 ```bash
 docker-compose exec spark-master spark-submit --master spark://spark-master:7077 scripts/rest-example.py
 ```
 
-
-### Creating Kafka Topics
-
+### Create and manage Kafka topics
 ```bash
+<<<<<<< HEAD
 # Create a topic
 docker-compose exec kafka-broker-1 kafka-topics.sh --bootstrap-server kafka-broker-1:29092 --create --topic bus_gps_demo --partitions 3 --replication-factor 2
+=======
+# Create topic
+docker-compose exec kafka-broker-1 kafka-topics.sh \
+    --bootstrap-server kafka-broker-1:29092 \
+    --create \
+    --topic my-topic \
+    --partitions 3 \
+    --replication-factor 2
+>>>>>>> origin/main
 
 # List topics
 docker-compose exec kafka-broker-1 kafka-topics.sh --bootstrap-server kafka-broker-1:29092 --list
 ```
 
-### MinIO Operations
-
-Access MinIO console at http://localhost:9002 with credentials `minioadmin/minioadmin123`
-
+### Access MinIO
+Go to http://localhost:9002 with `minioadmin/minioadmin123`.
 Or use mc client:
 ```bash
-docker run --rm --network b-data-platform_data-platform \
-    minio/mc:latest mc ls myminio/
+docker run --rm --network b-data-platform_data-platform minio/mc:latest mc ls myminio/
 ```
 
-### Gravitino and Iceberg Catalogs
+### Access Doris
+FE: http://localhost:8030  
+BE: http://localhost:8040
 
-Gravitino provides universal metadata management and also exposes an Iceberg REST service on port 9001:
-- Gravitino UI: http://localhost:8090
-- Gravitino Iceberg REST: http://localhost:9001
+### Access Kafka UI
+http://localhost:8888
 
-The dedicated Iceberg REST Catalog is available at:
-- Iceberg REST API: http://localhost:8181
+### Access Grafana
+http://localhost:3000 (admin/admin)
 
-## 🧪 Testing
-
-
-### Manual Health Checks
-
+## 🧪 Monitoring & Health Check
 ```bash
-# Check all services
+# Check service status
 docker-compose ps
-
-# Check individual service logs
+# View service logs
 docker-compose logs spark-master
 docker-compose logs kafka-broker-1
 docker-compose logs minio
 ```
 
 ## 🔄 CI/CD
+Integrated GitHub Actions:
+- Automated build & test
+- Security scan (Trivy)
+- Push images to GitHub Container Registry
 
-The platform includes GitHub Actions workflows for:
-
-- **Continuous Integration**: Builds and tests all services
-- **Security Scanning**: Trivy vulnerability scanning
-- **Container Registry**: Pushes images to GitHub Container Registry
-
-## 📁 Project Structure
-
+## 📁 Folder Structure
 ```
 b-data-platform/
-├── .github/                  # GitHub Actions CI/CD workflows
-├── config/                   # Configuration files
-│   ├── gravitino/           # Apache Gravitino configuration
-│   └── spark/               # Spark configuration files
-├── data/                     # Shared data directory (mounted to containers)
-├── docker/                   # Custom Docker images
-│   └── spark/               # Custom Spark image with Iceberg support
-├── src/                      # Source code and examples
-│   ├── examples/            # Example scripts and utilities
-│   │   ├── gravitino-example.py
-│   │   ├── health-check.bat # Windows health check script
-│   │   ├── health-check.sh  # Linux health check script
-│   │   └── iceberg-example.py
-│   └── spark/               # Spark application source code
+├── .github/                  # CI/CD workflows
+├── config/                   # Service configurations
+│   ├── doris/                # Doris FE/BE config
+│   ├── rest/                 # Iceberg REST Catalog config
+│   └── spark/                # Spark config
+├── data/                     # Shared data
+├── docker/                   # Dockerfiles for services
+│   ├── rest/
+│   └── spark/
+├── docs/                     # Internal documentation
+├── scripts/                  # Spark apps, examples, ETL
+│   ├── bronze/
+│   ├── example/
+│   ├── gold/
+│   └── silver/
 ├── .env                      # Environment variables
-├── .gitignore               # Git ignore file
-├── docker-compose.yml       # Main Docker Compose configuration
-├── docker-compose.prod.yml  # Production Docker Compose configuration
-├── Makefile                 # Build and management commands
-├── README.md                # This file
-└── SETUP-WINDOWS.md         # Windows setup guide
+├── .gitignore                # Git ignore
+├── docker-compose.yml        # Docker Compose config
+├── docker-compose.prod.yml   # Docker Compose for production
+├── Makefile                  # Build/management commands
+├── README.md                 # This file
+└── SETUP-WINDOWS.md          # Windows setup guide
 ```
 
 ## 🛠️ Development
-
-### Custom Spark Applications
-
-Place your applications in the `scripts/` directory and submit them:
-
+Place your Spark applications in the `scripts/` folder and submit jobs:
 ```bash
-docker-compose exec spark-master spark-submit \
-    --master spark://spark-master:7077 \
-    --deploy-mode client \
-    /opt/spark/scripts/your-app.py
+docker-compose exec spark-master spark-submit --master spark://spark-master:7077 /opt/spark/scripts/your-app.py
 ```
 
 ## 🚨 Troubleshooting
-
 ### Common Issues
-
-1. **Out of Memory**: Increase Docker memory to 8GB+
-2. **Port Conflicts**: Change ports in docker-compose.yml
-3. **Slow Startup**: Wait 2-3 minutes for all services
-4. **Permission Issues**: Run `chmod +x scripts/*.sh`
+1. **Out of RAM**: Increase Docker RAM to 8GB+
+2. **Port conflict**: Change ports in `docker-compose.yml`
+3. **Slow startup**: Wait 2-3 minutes for all services
+4. **File permission errors**: Run `chmod +x scripts/*.sh`
 
 ### Cleanup
-
 ```bash
-# Stop and remove everything
+# Stop and remove all services
 docker-compose down -v
-
-# Clean up system resources
+# System cleanup
 docker system prune -f
 ```

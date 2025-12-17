@@ -1,5 +1,5 @@
 from pyspark.sql import SparkSession
-from pyspark.sql.functions import col, when, upper, current_timestamp
+from pyspark.sql.functions import col, when, upper, current_timestamp, size, trim, lit, split
 
 # Khởi tạo SparkSession với Iceberg
 spark = SparkSession.builder \
@@ -17,10 +17,12 @@ spark = SparkSession.builder \
 
 spark.sparkContext.setLogLevel("ERROR")
 # Tạo bảng iceberg.silver.buswaypoint
+spark.sql("DROP TABLE iceberg.silver.buswaypoint")
 spark.sql("""
     CREATE TABLE IF NOT EXISTS iceberg.silver.buswaypoint (
         vehicle STRING,
         driver STRING,
+        driver_name STRING,
         speed FLOAT,
         datetime TIMESTAMP,
         x DOUBLE,
@@ -46,6 +48,7 @@ buswaypoint_df = spark.readStream \
     .format("iceberg") \
     .table("iceberg.bronze.buswaypoint")
 
+driver_parts = split(col("driver"), ";")
 # Clean và Transform 
 transformed_df = buswaypoint_df \
     .withColumn("heading", when(col("heading").isNull(), -1.0).otherwise(col("heading").cast("float"))) \
@@ -59,12 +62,14 @@ transformed_df = buswaypoint_df \
     .withColumn("analog2", when(col("analog2").isNull(), -1.0).otherwise(col("analog2").cast("float"))) \
     .withColumn("vehicle", upper(col("vehicle"))) \
     .withColumn("speed", when(col("speed").isNull(), -1).otherwise(col("speed"))) \
-    .withColumn("update_at", current_timestamp()) 
+    .withColumn("update_at", current_timestamp()) \
+    .withColumn("driver", when(col("driver").isNull(), None).when(size(driver_parts) >= 1, trim(driver_parts.getItem(0))).otherwise(col("driver")))\
+    .withColumn("driver_name",when(col("driver").isNull(), None).when(size(driver_parts) >= 2, trim(driver_parts.getItem(1))).otherwise(lit(None)))
     # Cần fix lại driver 800136000842;NGUYEN LE TAN DAT
 
 # Select only the necessary columns before writing to the silver table
 selected_columns = [
-    "vehicle", "driver", "speed", "datetime", "x", "y", "z", "heading", 
+    "vehicle", "driver", "driver_name", "speed", "datetime", "x", "y", "z", "heading", 
     "ignition", "aircon", "door_up", "door_down", "sos", "working", 
     "analog1", "analog2", "update_at"
 ]
@@ -76,16 +81,16 @@ print("Starting streaming transformation and write to iceberg.silver.buswaypoint
 def write_batch_to_iceberg(batch_df, batch_id):
     print("Start write")
     rec_count = batch_df.count()
-    print(f"[DEBUG] Batch {batch_id}: received {rec_count} records. Showing up to 10 rows:")
-    batch_df.show(10, truncate=False)
+    print(f"[DEBUG] Batch {batch_id}: received {rec_count} records. Showing up to 20 rows:")
+    batch_df.show(20, truncate=False)
 
 
 # Ghi dữ liệu streaming vào bảng silver.buswaypoint với foreachBatch và ghi log
 def write_batch_to_iceberg(batch_df, batch_id):
     print("Start write")
     rec_count = batch_df.count()
-    print(f"[DEBUG] Batch {batch_id}: received {rec_count} records. Showing up to 10 rows:")
-    batch_df.show(10, truncate=False)
+    print(f"[DEBUG] Batch {batch_id}: received {rec_count} records. Showing up to 20 rows:")
+    batch_df.show(20, truncate=False)
     if rec_count > 0:
         batch_df.write \
             .format("iceberg") \

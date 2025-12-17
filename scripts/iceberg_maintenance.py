@@ -4,34 +4,45 @@ from datetime import datetime, timedelta, timezone
 # ================== CONFIG ==================
 APP_NAME = "IcebergMaintenance"
 
-# Tên bảng Iceberg bạn muốn bảo trì
-TABLE = "iceberg.demo.bus_gps_demo"
+TABLE = "iceberg.bronze.buswaypoint" # điền tên bảng cần bảo trì vào đây, vd bronze.buswaypoint
 
-# Tên catalog trong Spark (phù hợp với setup của bạn)
-# Ví dụ: 'iceberg', 'hadoop', 'rest', ...
 CATALOG = "iceberg"
 
-# Bật / tắt từng loại maintenance
+# Iceberg REST catalog endpoint
+ICEBERG_REST_URI = "http://iceberg-rest:8181"
+
+WAREHOUSE = "s3a://lake/"
+S3_ENDPOINT = "http://minio:9000"
+S3_ACCESS_KEY = "minioadmin"   
+S3_SECRET_KEY = "minioadmin123"  
+
 ENABLE_COMPACT_DATA_FILES   = True   # gom file nhỏ -> file lớn
 ENABLE_EXPIRE_SNAPSHOTS     = True   # xóa snapshot cũ
 ENABLE_REMOVE_ORPHANS       = True   # xóa file mồ côi
 ENABLE_REWRITE_MANIFESTS    = True   # gom manifest nhỏ
 
-# Tham số cho compact
-MIN_FILE_SIZE_BYTES     = 1 * 1024 * 1024       # < 1MB thì gom
-TARGET_FILE_SIZE_BYTES  = 128 * 1024 * 1024     # file mục tiêu ~128MB
-MAX_FILE_SIZE_BYTES     = 256 * 1024 * 1024     # không quá 256MB
+MIN_FILE_SIZE_BYTES     = 3 * 1024 * 1024       
+TARGET_FILE_SIZE_BYTES  = 128 * 1024 * 1024     
+MAX_FILE_SIZE_BYTES     = 256 * 1024 * 1024   
+RETAIN_LAST_SNAPSHOTS   = 3   
+ORPHAN_RETENTION_DAYS   = 3   # chỉ xóa file cũ hơn 3 ngày
 
-# Tham số expire snapshots
-RETAIN_LAST_SNAPSHOTS   = 3   # giữ lại 3 snapshot mới nhất
-
-# Tham số orphan files
-ORPHAN_RETENTION_DAYS   = 2   # chỉ xóa file cũ hơn 2 ngày
-
-# ================== SETUP SPARK ==================
 spark = (
     SparkSession.builder
     .appName(APP_NAME)
+
+    .config("spark.sql.extensions", "org.apache.iceberg.spark.extensions.IcebergSparkSessionExtensions")
+    .config(f"spark.sql.catalog.{CATALOG}", "org.apache.iceberg.spark.SparkCatalog")
+    .config(f"spark.sql.catalog.{CATALOG}.type", "rest")
+    .config(f"spark.sql.catalog.{CATALOG}.uri", ICEBERG_REST_URI)
+    .config(f"spark.sql.catalog.{CATALOG}.warehouse", WAREHOUSE)
+    .config("spark.hadoop.fs.s3a.endpoint", S3_ENDPOINT)
+    .config("spark.hadoop.fs.s3a.access.key", S3_ACCESS_KEY)
+    .config("spark.hadoop.fs.s3a.secret.key", S3_SECRET_KEY)
+    .config("spark.hadoop.fs.s3a.path.style.access", "true")
+    .config("spark.hadoop.fs.s3a.connection.ssl.enabled", "false")
+    .config("spark.hadoop.fs.s3a.impl", "org.apache.hadoop.fs.s3a.S3AFileSystem")
+
     .getOrCreate()
 )
 
@@ -39,7 +50,6 @@ spark.sparkContext.setLogLevel("ERROR")
 
 
 def run(sql: str):
-    """Helper để log SQL và show kết quả (nếu có)."""
     print("\n=== RUN SQL ===")
     print(sql.strip())
     res = spark.sql(sql)
@@ -48,7 +58,6 @@ def run(sql: str):
 
 
 # ================== MAINTENANCE TASKS ==================
-
 print("\n=== Row count hiện tại ===")
 spark.sql(f"SELECT COUNT(*) AS row_count FROM {TABLE}").show()
 
@@ -60,13 +69,11 @@ spark.sql(f"""
 
 def compact_data_files():
     """
-    Gom các data file nhỏ thành file lớn hơn (rewrite_data_files).
-    Dựa trên phần 'Compact data files' trong docs.
+    Gom các data file nhỏ thành file lớn hơn.
     """
     if not ENABLE_COMPACT_DATA_FILES:
         print("Skip compact_data_files (disabled).")
         return
-
     print("\n>>> [1] Compact small data files")
     sql = f"""
         CALL {CATALOG}.system.rewrite_data_files(
@@ -81,16 +88,32 @@ def compact_data_files():
     run(sql)
 
 
+def rewrite_manifests():
+    """
+    Gom manifest nhỏ, sắp xếp lại metadata để query nhanh hơn.
+    """
+    if not ENABLE_REWRITE_MANIFESTS:
+        print("Skip rewrite_manifests (disabled).")
+        return
+
+    print("\n>>> [2] Rewrite manifests")
+    sql = f"""
+        CALL {CATALOG}.system.rewrite_manifests(
+            table => '{TABLE}'
+        )
+    """
+    run(sql)
+
+
 def expire_snapshots():
     """
     Xóa snapshot cũ, chỉ giữ lại một số snapshot gần nhất (expire_snapshots).
-    Dựa trên phần 'Expire Snapshots' trong docs.
     """
     if not ENABLE_EXPIRE_SNAPSHOTS:
         print("Skip expire_snapshots (disabled).")
         return
 
-    print("\n>>> [2] Expire old snapshots")
+    print("\n>>> [3] Expire old snapshots")
     sql = f"""
         CALL {CATALOG}.system.expire_snapshots(
             table => '{TABLE}',
@@ -103,13 +126,12 @@ def expire_snapshots():
 def remove_orphan_files():
     """
     Xóa orphan files – file không còn được snapshot nào tham chiếu.
-    Dựa trên phần 'Delete orphan files' trong docs.
     """
     if not ENABLE_REMOVE_ORPHANS:
         print("Skip remove_orphan_files (disabled).")
         return
 
-    print("\n>>> [3] Remove orphan files")
+    print("\n>>> [4] Remove orphan files")
     cutoff = (
         datetime.now(timezone.utc) - timedelta(days=ORPHAN_RETENTION_DAYS)
     ).strftime("%Y-%m-%d %H:%M:%S")
@@ -123,33 +145,10 @@ def remove_orphan_files():
     run(sql)
 
 
-def rewrite_manifests():
-    """
-    Gom manifest nhỏ, sắp xếp lại metadata để query nhanh hơn
-    (rewriteManifests trong docs).
-    """
-    if not ENABLE_REWRITE_MANIFESTS:
-        print("Skip rewrite_manifests (disabled).")
-        return
-
-    print("\n>>> [4] Rewrite manifests")
-    sql = f"""
-        CALL {CATALOG}.system.rewrite_manifests(
-            table => '{TABLE}'
-        )
-    """
-    run(sql)
-
-
 # ================== MAIN ==================
-
 if __name__ == "__main__":
     try:
-        # Thứ tự gợi ý:
-        # 1. Compact data files (gom file nhỏ)
-        # 2. Rewrite manifests (gom metadata sau khi data ổn định)
-        # 3. Expire snapshots (dọn snapshot cũ)
-        # 4. Remove orphan files (dọn file lẻ không còn dùng)
+
         compact_data_files()
         rewrite_manifests()
         expire_snapshots()

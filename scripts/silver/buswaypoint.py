@@ -1,5 +1,5 @@
 from pyspark.sql import SparkSession
-from pyspark.sql.functions import col, when, upper, current_timestamp, size, trim, lit, split
+from pyspark.sql.functions import col, when, upper, current_timestamp, size, trim, lit, split, regexp_replace
 
 # Khởi tạo SparkSession với Iceberg
 spark = SparkSession.builder \
@@ -17,7 +17,7 @@ spark = SparkSession.builder \
 
 spark.sparkContext.setLogLevel("ERROR")
 # Tạo bảng iceberg.silver.buswaypoint
-spark.sql("DROP TABLE iceberg.silver.buswaypoint")
+spark.sql("DROP TABLE IF EXISTS iceberg.silver.buswaypoint")
 spark.sql("""
     CREATE TABLE IF NOT EXISTS iceberg.silver.buswaypoint (
         vehicle STRING,
@@ -48,7 +48,9 @@ buswaypoint_df = spark.readStream \
     .format("iceberg") \
     .table("iceberg.bronze.buswaypoint")
 
-driver_parts = split(col("driver"), ";")
+# Normalize driver field (trim, replace full-width semicolon) then split
+cleaned_driver = regexp_replace(trim(col("driver")), "; ", ";")
+driver_parts = split(cleaned_driver, ";")
 # Clean và Transform 
 transformed_df = buswaypoint_df \
     .withColumn("heading", when(col("heading").isNull(), -1.0).otherwise(col("heading").cast("float"))) \
@@ -63,9 +65,8 @@ transformed_df = buswaypoint_df \
     .withColumn("vehicle", upper(col("vehicle"))) \
     .withColumn("speed", when(col("speed").isNull(), -1).otherwise(col("speed"))) \
     .withColumn("update_at", current_timestamp()) \
-    .withColumn("driver", when(col("driver").isNull(), None).when(size(driver_parts) >= 1, trim(driver_parts.getItem(0))).otherwise(col("driver")))\
-    .withColumn("driver_name",when(col("driver").isNull(), None).when(size(driver_parts) >= 2, trim(driver_parts.getItem(1))).otherwise(lit(None)))
-    # Cần fix lại driver 800136000842;NGUYEN LE TAN DAT
+    .withColumn("driver",when(col("driver").isNull() | (trim(col("driver")) == ""), lit(None)).when(size(driver_parts) >= 1, trim(driver_parts.getItem(0))).otherwise(trim(col("driver"))))\
+    .withColumn("driver_name",when(col("driver").isNull() | (trim(col("driver")) == ""), lit(None)).when(size(driver_parts) >= 2, trim(driver_parts.getItem(1))).otherwise(lit(None)))    # Cần fix lại driver 800136000842;NGUYEN LE TAN DAT
 
 # Select only the necessary columns before writing to the silver table
 selected_columns = [
@@ -89,8 +90,10 @@ def write_batch_to_iceberg(batch_df, batch_id):
 def write_batch_to_iceberg(batch_df, batch_id):
     print("Start write")
     rec_count = batch_df.count()
-    print(f"[DEBUG] Batch {batch_id}: received {rec_count} records. Showing up to 20 rows:")
+    print(f"[DEBUG] Batch {batch_id}: received {rec_count} records.")
+    # Show main rows
     batch_df.show(20, truncate=False)
+    # Additional debug: compute driver_parts on the batch and show them to investigate split issues
     if rec_count > 0:
         batch_df.write \
             .format("iceberg") \

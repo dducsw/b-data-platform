@@ -281,6 +281,10 @@ services:
   doris-fe:
     image: apache/doris:fe-3.1.3
     container_name: doris-fe
+    deploy:
+      resources:
+        limits:
+          memory: 3g
     ports:
       - "8030:8030"   # FE HTTP
       - "9030:9030"   # FE MySQL
@@ -303,6 +307,10 @@ services:
   doris-be:
     image: apache/doris:be-3.1.3
     container_name: doris-be
+    deploy:
+      resources:
+        limits:
+          memory: 6g
     ports:
       - "8040:8040"   # BE HTTP
       - "9050:9050"   # BE Internal
@@ -333,7 +341,7 @@ services:
 
 volumes:
   minio_data:
-  gravitino_data:
+  # gravitino_data:
   kafka_controller_data:
   kafka_broker1_data:
   kafka_broker2_data:

@@ -17,7 +17,7 @@ spark = SparkSession.builder \
 
 spark.sparkContext.setLogLevel("ERROR")
 # Tạo bảng iceberg.silver.buswaypoint
-spark.sql("DROP TABLE IF EXISTS iceberg.silver.buswaypoint")
+spark.sql("CREATE NAMESPACE IF NOT EXISTS iceberg.silver")
 spark.sql("""
     CREATE TABLE IF NOT EXISTS iceberg.silver.buswaypoint (
         vehicle STRING,

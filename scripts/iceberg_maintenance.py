@@ -4,17 +4,10 @@ from datetime import datetime, timedelta, timezone
 # ================== CONFIG ==================
 APP_NAME = "IcebergMaintenance"
 
-TABLE = "iceberg.bronze.buswaypoint" # điền tên bảng cần bảo trì vào đây, vd bronze.buswaypoint
-
-CATALOG = "iceberg"
+TABLE = "iceberg.silver.buswaypoint"
 
 # Iceberg REST catalog endpoint
 ICEBERG_REST_URI = "http://iceberg-rest:8181"
-
-WAREHOUSE = "s3a://lake/"
-S3_ENDPOINT = "http://minio:9000"
-S3_ACCESS_KEY = "minioadmin"   
-S3_SECRET_KEY = "minioadmin123"  
 
 ENABLE_COMPACT_DATA_FILES   = True   # gom file nhỏ -> file lớn
 ENABLE_EXPIRE_SNAPSHOTS     = True   # xóa snapshot cũ
@@ -22,27 +15,27 @@ ENABLE_REMOVE_ORPHANS       = True   # xóa file mồ côi
 ENABLE_REWRITE_MANIFESTS    = True   # gom manifest nhỏ
 
 MIN_FILE_SIZE_BYTES     = 3 * 1024 * 1024       
-TARGET_FILE_SIZE_BYTES  = 128 * 1024 * 1024     
-MAX_FILE_SIZE_BYTES     = 256 * 1024 * 1024   
+TARGET_FILE_SIZE_BYTES  = 64 * 1024 * 1024     
+MAX_FILE_SIZE_BYTES     = 512 * 1024 * 1024   
 RETAIN_LAST_SNAPSHOTS   = 3   
-ORPHAN_RETENTION_DAYS   = 3   # chỉ xóa file cũ hơn 3 ngày
+ORPHAN_RETENTION_DAYS   = 10 
 
 spark = (
     SparkSession.builder
     .appName(APP_NAME)
 
     .config("spark.sql.extensions", "org.apache.iceberg.spark.extensions.IcebergSparkSessionExtensions")
-    .config(f"spark.sql.catalog.{CATALOG}", "org.apache.iceberg.spark.SparkCatalog")
-    .config(f"spark.sql.catalog.{CATALOG}.type", "rest")
-    .config(f"spark.sql.catalog.{CATALOG}.uri", ICEBERG_REST_URI)
-    .config(f"spark.sql.catalog.{CATALOG}.warehouse", WAREHOUSE)
-    .config("spark.hadoop.fs.s3a.endpoint", S3_ENDPOINT)
-    .config("spark.hadoop.fs.s3a.access.key", S3_ACCESS_KEY)
-    .config("spark.hadoop.fs.s3a.secret.key", S3_SECRET_KEY)
+    .config(f"spark.sql.catalog.iceberg", "org.apache.iceberg.spark.SparkCatalog")
+    .config(f"spark.sql.catalog.iceberg.type", "rest")
+    .config(f"spark.sql.catalog.iceberg.uri", "http://iceberg-rest:8181")
+    .config(f"spark.sql.catalog.iceberg.warehouse", "s3a://lake/")
+    .config("spark.sql.defaultCatalog", "iceberg") 
+    .config("spark.hadoop.fs.s3a.endpoint", "http://minio:9000")
+    .config("spark.hadoop.fs.s3a.access.key", "minioadmin")
+    .config("spark.hadoop.fs.s3a.secret.key", "minioadmin123")
     .config("spark.hadoop.fs.s3a.path.style.access", "true")
     .config("spark.hadoop.fs.s3a.connection.ssl.enabled", "false")
     .config("spark.hadoop.fs.s3a.impl", "org.apache.hadoop.fs.s3a.S3AFileSystem")
-
     .getOrCreate()
 )
 
@@ -58,13 +51,35 @@ def run(sql: str):
 
 
 # ================== MAINTENANCE TASKS ==================
+print("\n=== CHECK ENV ===")
+spark.sql("SHOW CATALOGS").show()
+spark.sql("SHOW DATABASES IN iceberg").show()
+
 print("\n=== Row count hiện tại ===")
-spark.sql(f"SELECT COUNT(*) AS row_count FROM {TABLE}").show()
+spark.sql("SELECT COUNT(*) AS row_count FROM iceberg.silver.buswaypoint").show()
+
+print("\n=== Snapshots hiện tại ===")
+spark.sql("""
+    SELECT committed_at, snapshot_id, parent_id, operation
+    FROM iceberg.silver.buswaypoint.snapshots
+""").show(truncate=False)
+spark.sql("SHOW TABLES IN iceberg.bronze").show()
+
+spark.sql("SELECT COUNT(*) AS row_count FROM iceberg.silver.buswaypoint").show()
+
+spark.sql("""
+    SELECT committed_at, snapshot_id, parent_id, operation
+    FROM iceberg.silver.buswaypoint.snapshots
+""").show(truncate=False)
+
+print("\n=== Row count hiện tại ===")
+spark.sql("SHOW CATALOGS").show()
+spark.sql("SELECT COUNT(*) AS row_count FROM iceberg.silver.buswaypoint").show()
 
 print("\n=== Snapshots hiện tại (nếu có) ===")
 spark.sql(f"""
     SELECT committed_at, snapshot_id, parent_id, operation
-    FROM {TABLE}.snapshots
+    FROM iceberg.silver.buswaypoint.snapshots
 """).show(truncate=False)
 
 def compact_data_files():
@@ -76,7 +91,7 @@ def compact_data_files():
         return
     print("\n>>> [1] Compact small data files")
     sql = f"""
-        CALL {CATALOG}.system.rewrite_data_files(
+        CALL iceberg.system.rewrite_data_files(
             table => '{TABLE}',
             options => map(
                 'min-file-size-bytes',    '{MIN_FILE_SIZE_BYTES}',
@@ -86,7 +101,6 @@ def compact_data_files():
         )
     """
     run(sql)
-
 
 def rewrite_manifests():
     """
@@ -98,7 +112,7 @@ def rewrite_manifests():
 
     print("\n>>> [2] Rewrite manifests")
     sql = f"""
-        CALL {CATALOG}.system.rewrite_manifests(
+        CALL iceberg.system.rewrite_manifests(
             table => '{TABLE}'
         )
     """
@@ -115,7 +129,7 @@ def expire_snapshots():
 
     print("\n>>> [3] Expire old snapshots")
     sql = f"""
-        CALL {CATALOG}.system.expire_snapshots(
+        CALL iceberg.system.expire_snapshots(
             table => '{TABLE}',
             retain_last => {RETAIN_LAST_SNAPSHOTS}
         )
@@ -137,14 +151,12 @@ def remove_orphan_files():
     ).strftime("%Y-%m-%d %H:%M:%S")
 
     sql = f"""
-        CALL {CATALOG}.system.remove_orphan_files(
+        CALL iceberg.system.remove_orphan_files(
             table => '{TABLE}',
             older_than => TIMESTAMP '{cutoff}'
         )
     """
     run(sql)
-
-
 # ================== MAIN ==================
 if __name__ == "__main__":
     try:

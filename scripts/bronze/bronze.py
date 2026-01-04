@@ -63,7 +63,7 @@ tables = [
             analog1 FLOAT,
             analog2 FLOAT,
             load_at TIMESTAMP
-        ) USING iceberg
+        ) USING iceberg 
         PARTITIONED BY (day(datetime))
     """),
     # StudentCheckInPoint
